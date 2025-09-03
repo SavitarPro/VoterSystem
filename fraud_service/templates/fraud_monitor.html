@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Voter {{ voter_nic }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        .video-feed {
+            width: 100%;
+            max-width: 640px;
+            border: 3px solid #007bff;
+            border-radius: 10px;
+        }
+        .detection-box {
+            border: 2px solid #dc3545;
+            padding: 10px;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+        .person-count {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                👁️ Monitoring Voter: {{ voter_nic }}
+            </span>
+            <button class="btn btn-outline-light" onclick="window.close()">Close</button>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <!-- Video Feed Column -->
+            <div class="col-lg-8 col-md-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5>Real-time Video Feed</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div id="videoContainer">
+                            <img id="videoFeed" class="video-feed"
+                                 src="" alt="Live video feed">
+                            <div class="mt-2">
+                                <span class="badge bg-secondary" id="connectionStatus">
+                                    Connecting...
+                                </span>
+                                <span class="badge bg-info ms-2" id="frameRate">
+                                    0 FPS
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detection Results Column -->
+            <div class="col-lg-4 col-md-12">
+                <div class="card">
+                    <div class="card-header bg-warning">
+                        <h5>👥 Person Detection</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="detection-box text-center">
+                            <div class="person-count" id="personCount">0</div>
+                            <div class="text-muted">Persons Detected</div>
+                        </div>
+
+                        <div class="mt-3">
+                            <h6>Detection Status:</h6>
+                            <div id="detectionStatus" class="alert alert-info">
+                                Waiting for detection...
+                            </div>
+                        </div>
+
+                        <!-- Fraud Alert -->
+                        <div class="mt-3" id="fraudAlert" style="display: none;">
+                            <div class="alert alert-danger">
+                                <h6>🚨 FRAUD DETECTED!</h6>
+                                <p>Multiple persons detected in voting booth</p>
+                                <small>Voting has been frozen pending review</small>
+                            </div>
+                        </div>
+
+                        <!-- Officer Actions -->
+                        <div class="mt-3" id="actionButtons" style="display: none;">
+                            <h6>Officer Action Required:</h6>
+                            <button class="btn btn-success w-100 mb-2" onclick="resolveFraud('approve')">
+                                ✅ Approve Voting & Continue
+                            </button>
+                            <button class="btn btn-danger w-100" onclick="resolveFraud('reject')">
+                                ❌ Reject Voting & Cancel
+                            </button>
+                        </div>
+
+                        <!-- Detection Log -->
+                        <div class="mt-3">
+                            <h6>Detection Log:</h6>
+                            <div id="detectionLog" style="max-height: 200px; overflow-y: auto;">
+                                <div class="text-muted">No detections yet</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const voterNic = '{{ voter_nic }}';
+    let updateInterval;
+    let updateAttempts = 0;
+
+    async function updateMonitoring() {
+        try {
+            const response = await fetch('/api/get_monitoring_data');
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch monitoring data');
+            }
+
+            const monitoringData = await response.json();
+
+            const voterData = monitoringData[voterNic];
+            if (!voterData) {
+                document.getElementById('videoFeed').src = '';
+                document.getElementById('connectionStatus').className = 'badge bg-warning';
+                document.getElementById('connectionStatus').textContent = 'Waiting for data...';
+
+                // Show waiting message
+                document.getElementById('detectionStatus').className = 'alert alert-warning';
+                document.getElementById('detectionStatus').innerHTML =
+                    '⏳ Waiting for video feed from voting station...';
+
+                updateAttempts++;
+                if (updateAttempts > 10) {
+                    document.getElementById('connectionStatus').className = 'badge bg-danger';
+                    document.getElementById('connectionStatus').textContent = 'No data received';
+                }
+                return;
+            }
+
+            // Reset attempt counter
+            updateAttempts = 0;
+            document.getElementById('connectionStatus').className = 'badge bg-success';
+            document.getElementById('connectionStatus').textContent = 'Connected';
+
+            // Update video feed
+            const videoFeed = document.getElementById('videoFeed');
+            if (voterData.last_frame) {
+                videoFeed.src = voterData.last_frame;
+                videoFeed.style.display = 'block';
+            } else {
+                videoFeed.style.display = 'none';
+            }
+
+            // Update detection results
+            if (voterData.last_detection) {
+                const personCount = voterData.last_detection.person_count;
+                document.getElementById('personCount').textContent = personCount;
+
+                const statusDiv = document.getElementById('detectionStatus');
+                if (personCount === 0) {
+                    statusDiv.className = 'alert alert-info';
+                    statusDiv.innerHTML = '✅ No persons detected';
+                    hideFraudAlerts();
+                } else if (personCount === 1) {
+                    statusDiv.className = 'alert alert-success';
+                    statusDiv.innerHTML = '✅ Single person detected - Normal';
+                    hideFraudAlerts();
+                } else {
+                    statusDiv.className = 'alert alert-danger';
+                    statusDiv.innerHTML = `🚨 ${personCount} persons detected - POTENTIAL FRAUD`;
+
+                    // Show fraud alert
+                    showFraudAlerts();
+                }
+
+                // Update log
+                updateDetectionLog(personCount);
+            }
+
+        } catch (error) {
+            console.error('Error updating monitoring:', error);
+            document.getElementById('connectionStatus').className = 'badge bg-danger';
+            document.getElementById('connectionStatus').textContent = 'Connection error';
+        }
+    }
+
+    function updateDetectionLog(personCount) {
+        const logDiv = document.getElementById('detectionLog');
+        const logEntry = document.createElement('div');
+        logEntry.className = 'small';
+        logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] ${personCount} persons detected`;
+        logDiv.prepend(logEntry);
+
+        // Keep only last 10 entries
+        while (logDiv.children.length > 10) {
+            logDiv.removeChild(logDiv.lastChild);
+        }
+    }
+
+    function showFraudAlerts() {
+        document.getElementById('fraudAlert').style.display = 'block';
+        document.getElementById('actionButtons').style.display = 'block';
+    }
+
+    function hideFraudAlerts() {
+        document.getElementById('fraudAlert').style.display = 'none';
+        document.getElementById('actionButtons').style.display = 'none';
+    }
+
+    async function resolveFraud(action) {
+        try {
+            const response = await fetch('/api/resolve_fraud', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    voter_nic: voterNic,
+                    action: action
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert(`Voting ${action === 'approve' ? 'approved' : 'rejected'}`);
+                window.close();
+            } else {
+                alert('Error: ' + (result.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Network error: ' + error.message);
+        }
+    }
+
+    // Start updating
+    updateInterval = setInterval(updateMonitoring, 1000);
+    updateMonitoring();
+
+    // Cleanup
+    window.addEventListener('beforeunload', () => {
+        clearInterval(updateInterval);
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!-- Add this section to the dashboard -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5>Active Monitoring Sessions</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Voter NIC</th>
+                                <th>Status</th>
+                                <th>Duration</th>
+                                <th>Last Detection</th>
+                                <th>Live Feed</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeSessionsTable">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">
+                                    No active monitoring sessions
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Add this JavaScript to handle live monitoring
+let monitoringInterval;
+
+async function updateActiveSessions() {
+    try {
+        const response = await fetch('/api/get_monitoring_data');
+        const monitoringData = await response.json();
+
+        const tableBody = document.getElementById('activeSessionsTable');
+        tableBody.innerHTML = '';
+
+        if (Object.keys(monitoringData).length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted">
+                        No active monitoring sessions
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        for (const [voterNic, data] of Object.entries(monitoringData)) {
+            // FIX: Proper duration calculation
+            const currentTime = Date.now() / 1000; // Current time in seconds
+            const durationSeconds = currentTime - data.start_time;
+            // Fix duration display
+            const durationMinutes = Math.max(0, Math.round(durationSeconds / 60));
+
+            const lastDetection = data.last_detection ?
+                `${data.last_detection.person_count} persons` : 'No data';
+
+            // FIX: Handle missing frame data
+            const frameDisplay = data.last_frame ?
+                `<img src="${data.last_frame}" height="50" style="border: 2px solid #007bff; border-radius: 5px;">` :
+                '<span class="text-muted">No frame</span>';
+
+            tableBody.innerHTML += `
+                <tr>
+                    <td><code>${voterNic}</code></td>
+                    <td>
+                        <span class="badge bg-success">Active</span>
+                    </td>
+                    <td>${durationMinutes} min</td>
+                    <td>${lastDetection}</td>
+                    <td>${frameDisplay}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="openMonitoring('${voterNic}')">
+                            <i class="fas fa-eye"></i> Monitor
+                        </button>
+                        <button class="btn btn-sm btn-secondary" onclick="stopMonitoring('${voterNic}')">
+                            <i class="fas fa-stop"></i> Stop
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+    } catch (error) {
+        console.error('Error updating monitoring data:', error);
+    }
+}
+
+function openMonitoring(voterNic) {
+    window.open(`/monitor/${voterNic}`, '_blank', 'width=1000,height=700');
+}
+
+async function stopMonitoring(voterNic) {
+    if (confirm(`Stop monitoring voter ${voterNic}?`)) {
+        await fetch('/api/stop_monitoring', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ voter_nic: voterNic })
+        });
+        updateActiveSessions();
+    }
+}
+
+// Start updating monitoring data
+monitoringInterval = setInterval(updateActiveSessions, 2000);
+updateActiveSessions();
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    clearInterval(monitoringInterval);
+});
+</script>

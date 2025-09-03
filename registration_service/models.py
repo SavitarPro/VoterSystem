@@ -1,0 +1,102 @@
+import psycopg2
+from utils import get_db_connection, get_central_db_connection, get_validity_db_connection
+
+
+def check_nic_exists(nic):
+    """Check if NIC already exists in central database"""
+    try:
+        conn = get_central_db_connection()
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM central_voter_registry WHERE nic = %s', (nic,))
+        return cur.fetchone() is not None
+    except Exception as e:
+        print(f"Error checking NIC: {e}")
+        return False
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+
+
+def register_voter(unique_id, nic, full_name, address, electoral_division, face_image_path, fingerprint_path):
+    """Register a new voter"""
+    conn = None
+    central_conn = None
+    validity_conn = None
+
+    try:
+        # First add to central registry
+        central_conn = get_central_db_connection()
+        central_cur = central_conn.cursor()
+        central_cur.execute(
+            'INSERT INTO central_voter_registry (nic, electoral_division) VALUES (%s, %s)',
+            (nic, electoral_division)
+        )
+        central_conn.commit()
+        central_cur.close()
+
+        # Then add to registration database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            '''INSERT INTO voters (unique_id, nic, full_name, address, electoral_division, face_image_path,
+                                   fingerprint_path)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)''',
+            (unique_id, nic, full_name, address, electoral_division, face_image_path, fingerprint_path)
+        )
+        conn.commit()
+        cur.close()
+
+        # Finally add to validity database
+        validity_conn = get_validity_db_connection()
+        validity_cur = validity_conn.cursor()
+        validity_cur.execute(
+            '''INSERT INTO voters (unique_id, nic, full_name, electoral_division)
+               VALUES (%s, %s, %s, %s)''',
+            (unique_id, nic, full_name, electoral_division)
+        )
+        validity_conn.commit()
+        validity_cur.close()
+
+        return True
+
+    except Exception as e:
+        print(f"Error registering voter: {e}")
+        # Rollback all changes if any part fails
+        try:
+            if central_conn:
+                central_cur = central_conn.cursor()
+                central_cur.execute('DELETE FROM central_voter_registry WHERE nic = %s', (nic,))
+                central_conn.commit()
+                central_cur.close()
+        except:
+            pass
+
+        try:
+            if conn:
+                cur = conn.cursor()
+                cur.execute('DELETE FROM voters WHERE unique_id = %s', (unique_id,))
+                conn.commit()
+                cur.close()
+        except:
+            pass
+
+        try:
+            if validity_conn:
+                validity_cur = validity_conn.cursor()
+                validity_cur.execute('DELETE FROM voters WHERE unique_id = %s', (unique_id,))
+                validity_conn.commit()
+                validity_cur.close()
+        except:
+            pass
+
+        return False
+
+    finally:
+        # Close all connections
+        if conn:
+            conn.close()
+        if central_conn:
+            central_conn.close()
+        if validity_conn:
+            validity_conn.close()

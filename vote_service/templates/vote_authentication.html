@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fingerprint Authentication</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">Fingerprint Authentication</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-4">
+                            <i class="fas fa-fingerprint fa-5x text-primary"></i>
+                            <p class="mt-3">Please place your finger on the scanner</p>
+                        </div>
+
+                        <div class="video-container text-center mb-3">
+                            <video id="video" width="100%" height="300" autoplay muted></video>
+                            <canvas id="canvas" style="display: none;"></canvas>
+                        </div>
+
+                        <div class="text-center">
+                            <button id="startBtn" class="btn btn-success btn-lg">
+                                <i class="fas fa-play"></i> Start Authentication
+                            </button>
+                        </div>
+
+                        <!-- Officer Override Section -->
+                        <div class="mt-4 border-top pt-3">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="toggleOverrideSection()">
+                                <i class="fas fa-key"></i> Officer Override
+                            </button>
+
+                            <div id="overrideSection" style="display: none;" class="mt-3 p-3 bg-light rounded">
+                                <h6>Officer Authentication</h6>
+                                <p class="text-muted small">Use this only if fingerprint recognition fails</p>
+
+                                <div class="mb-2">
+                                    <label class="form-label">Officer ID</label>
+                                    <input type="password" id="officerId" class="form-control" placeholder="Enter officer ID">
+                                </div>
+
+                                <div class="mb-2">
+                                    <label class="form-label">Voter NIC</label>
+                                    <input type="text" id="voterNic" class="form-control" placeholder="Enter voter NIC">
+                                </div>
+
+                                <button id="overrideBtn" class="btn btn-warning">
+                                    <i class="fas fa-unlock"></i> Override Authentication
+                                </button>
+
+                                <div id="overrideResult" class="mt-2"></div>
+                            </div>
+                        </div>
+
+                        <div id="authResult" class="mt-4" style="display: none;">
+                            <div class="alert alert-info">
+                                <h5>Authentication Result</h5>
+                                <p id="authMessage">Processing...</p>
+                                <p>Confidence: <span id="authConfidence">0%</span></p>
+                            </div>
+
+                            <div id="voterInfo" style="display: none;">
+                                <h5>Voter Information</h5>
+                                <table class="table table-sm">
+                                    <tr><th>NIC</th><td id="infoNIC">-</td></tr>
+                                    <tr><th>Name</th><td id="infoName">-</td></tr>
+                                    <tr><th>Electoral Division</th><td id="infoDivision">-</td></tr>
+                                </table>
+
+                                <div class="text-center">
+                                    <button id="proceedBtn" class="btn btn-primary">
+                                        Proceed to Vote
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="alreadyVoted" class="alert alert-warning" style="display: none;">
+                                <h5>Already Voted</h5>
+                                <p>You have already cast your vote. Each voter can only vote once.</p>
+                                <a href="/" class="btn btn-secondary">Return to Dashboard</a>
+                            </div>
+
+                            <div id="voterRejected" class="alert alert-danger" style="display: none;">
+                                <h5>Voter Not Approved</h5>
+                                <p>This voter has not been approved for voting. Please contact election officials.</p>
+                                <a href="/" class="btn btn-secondary">Return to Dashboard</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class VotingApp {
+            constructor() {
+                this.isRunning = false;
+                this.stream = null;
+                this.init();
+            }
+
+            // Add this to the VotingApp class
+            async sendFrameToFraudService(imageData) {
+                if (!this.voterNic) return;
+
+                try {
+                    const response = await fetch('/api/send_video_frame', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image_data: imageData })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.is_fraud) {
+                        // Fraud detected - freeze the interface
+                        this.handleFraudDetection(result);
+                    }
+                } catch (error) {
+                    console.error('Error sending frame to fraud service:', error);
+                }
+            }
+
+            handleFraudDetection(result) {
+                // Freeze the interface
+                this.stopAuthentication();
+
+                document.getElementById('authResult').style.display = 'block';
+                document.getElementById('authMessage').textContent =
+                    'Fraud detected: ' + result.message;
+                document.getElementById('authConfidence').textContent =
+                    result.person_count + ' persons detected';
+
+                // Show fraud warning
+                const fraudWarning = document.createElement('div');
+                fraudWarning.className = 'alert alert-danger mt-3';
+                fraudWarning.innerHTML = `
+                    <h5>🚨 Fraud Detection</h5>
+                    <p>${result.person_count} persons detected. Voting frozen.</p>
+                    <p>Waiting for officer review...</p>
+                `;
+                document.getElementById('authResult').appendChild(fraudWarning);
+
+                // Disable proceed button
+                const proceedBtn = document.getElementById('proceedBtn');
+                if (proceedBtn) {
+                    proceedBtn.disabled = true;
+                    proceedBtn.innerHTML = '<i class="fas fa-lock"></i> Voting Frozen';
+                }
+            }
+
+            // Update the processVideo method to send frames
+            async processVideo() {
+                if (!this.isRunning) return;
+
+                const video = document.getElementById('video');
+                const canvas = document.getElementById('canvas');
+                const context = canvas.getContext('2d');
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const imageData = canvas.toDataURL('image/jpeg');
+
+                // Send frame to fraud service
+                if (this.voterNic) {
+                    this.sendFrameToFraudService(imageData);
+                }
+
+                // ... rest of the existing code
+            }
+
+            init() {
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    if (this.isRunning) {
+                        this.stopAuthentication();
+                    } else {
+                        this.startAuthentication();
+                    }
+                });
+
+                document.getElementById('proceedBtn').addEventListener('click', () => {
+                    window.location.href = '/vote/parties';
+                });
+
+                document.getElementById('overrideBtn').addEventListener('click', () => {
+                    this.handleOfficerOverride();
+                });
+            }
+
+            async startAuthentication() {
+                try {
+                    // Get all cameras
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+                    let cameraConstraints = { width: 640, height: 480 };
+
+                    // Always try to use camera at index 1 (second camera)
+                    if (videoDevices.length > 1) {
+                        cameraConstraints.deviceId = { exact: videoDevices[1].deviceId };
+                        console.log('Using second camera');
+                    }
+                    // If only one camera, use default constraints
+
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        video: cameraConstraints
+                    });
+
+                    const video = document.getElementById('video');
+                    video.srcObject = this.stream;
+
+                    this.isRunning = true;
+                    document.getElementById('startBtn').innerHTML = '<i class="fas fa-stop"></i> Stop Authentication';
+                    document.getElementById('startBtn').classList.remove('btn-success');
+                    document.getElementById('startBtn').classList.add('btn-danger');
+
+                    this.processVideo();
+
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    alert('Cannot access camera. Please check permissions.');
+                }
+            }
+
+            stopAuthentication() {
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                }
+
+                this.isRunning = false;
+                document.getElementById('startBtn').innerHTML = '<i class="fas fa-play"></i> Start Authentication';
+                document.getElementById('startBtn').classList.remove('btn-danger');
+                document.getElementById('startBtn').classList.add('btn-success');
+            }
+
+            async processVideo() {
+                if (!this.isRunning) return;
+
+                const video = document.getElementById('video');
+                const canvas = document.getElementById('canvas');
+                const context = canvas.getContext('2d');
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const imageData = canvas.toDataURL('image/jpeg');
+
+                try {
+                    const response = await fetch('/api/process_fingerprint', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: imageData })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        document.getElementById('authResult').style.display = 'block';
+                        document.getElementById('authConfidence').textContent =
+                            (result.confidence * 100).toFixed(1) + '%';
+
+                        if (result.authenticated) {
+                            if (result.already_voted) {
+                                document.getElementById('alreadyVoted').style.display = 'block';
+                                document.getElementById('voterInfo').style.display = 'none';
+                                document.getElementById('voterRejected').style.display = 'none';
+                                document.getElementById('authMessage').textContent = result.message;
+                                this.stopAuthentication();
+                            } else {
+                                document.getElementById('voterInfo').style.display = 'block';
+                                document.getElementById('alreadyVoted').style.display = 'none';
+                                document.getElementById('voterRejected').style.display = 'none';
+                                document.getElementById('authMessage').textContent = result.message;
+
+                                // Display voter info
+                                document.getElementById('infoNIC').textContent = result.voter.nic;
+                                document.getElementById('infoName').textContent = result.voter.full_name;
+                                document.getElementById('infoDivision').textContent = result.voter.electoral_division;
+
+                                this.stopAuthentication();
+                            }
+                        } else if (result.voter_rejected) {
+                            document.getElementById('voterRejected').style.display = 'block';
+                            document.getElementById('voterInfo').style.display = 'none';
+                            document.getElementById('alreadyVoted').style.display = 'none';
+                            document.getElementById('authMessage').textContent = result.message;
+                            this.stopAuthentication();
+                        } else {
+                            document.getElementById('authMessage').textContent = 'Fingerprint not recognized';
+                            document.getElementById('voterInfo').style.display = 'none';
+                            document.getElementById('alreadyVoted').style.display = 'none';
+                            document.getElementById('voterRejected').style.display = 'none';
+                        }
+                    }
+
+                } catch (error) {
+                    console.error('Error processing fingerprint:', error);
+                }
+
+                if (this.isRunning) {
+                    setTimeout(() => this.processVideo(), 2000);
+                }
+            }
+
+            async handleOfficerOverride() {
+                const officerId = document.getElementById('officerId').value;
+                const voterNic = document.getElementById('voterNic').value;
+                const overrideResult = document.getElementById('overrideResult');
+
+                if (!officerId || !voterNic) {
+                    overrideResult.innerHTML = '<div class="alert alert-warning">Please enter both Officer ID and Voter NIC</div>';
+                    return;
+                }
+
+                overrideResult.innerHTML = '<div class="alert alert-info">Processing...</div>';
+
+                try {
+                    const response = await fetch('/api/officer_override', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ officer_id: officerId, voter_nic: voterNic })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        overrideResult.innerHTML = '<div class="alert alert-success">Override successful! Redirecting...</div>';
+                        setTimeout(() => {
+                            window.location.href = result.redirect;
+                        }, 1000);
+                    } else {
+                        overrideResult.innerHTML = `<div class="alert alert-danger">Error: ${result.error}</div>`;
+                    }
+                } catch (error) {
+                    overrideResult.innerHTML = `<div class="alert alert-danger">Network error: ${error}</div>`;
+                }
+            }
+        }
+
+        function toggleOverrideSection() {
+            const section = document.getElementById('overrideSection');
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.votingApp = new VotingApp();
+        });
+    </script>
+</body>
+</html>

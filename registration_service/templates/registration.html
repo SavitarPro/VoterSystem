@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voter Registration System</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .registration-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .upload-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            height: 100%;
+        }
+
+        .preview-container {
+            width: 100%;
+            height: 240px;
+            background: #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px dashed #6c757d;
+        }
+
+        .preview-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+
+        .user-id {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4e54c8;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #6c757d;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+        }
+
+        .step-icon.active {
+            background: #4e54c8;
+        }
+
+        .step-icon.completed {
+            background: #28a745;
+        }
+
+        .nav-tabs .nav-link.active {
+            background: #4e54c8;
+            color: white;
+            border: none;
+        }
+
+        .nav-tabs .nav-link {
+            color: #495057;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px 5px 0 0;
+        }
+
+        .nav-tabs .nav-link.disabled {
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .form-control:invalid {
+            border-color: #dc3545;
+        }
+
+        .form-control:valid {
+            border-color: #28a745;
+        }
+
+        .requirement-text {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .upload-box {
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="registration-card">
+        <div class="card-header bg-primary text-white text-center py-4">
+            <h1 class="card-title mb-1"><i class="fas fa-vote-yea me-2"></i>Voter Registration System</h1>
+            <p class="mb-0">Register to vote with your biometric information</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="bg-light p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="step-icon active" id="step-icon-1">1</div>
+                    <div class="d-none d-md-block">Personal Information</div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="step-icon" id="step-icon-2">2</div>
+                    <div class="d-none d-md-block">Biometric Upload</div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="step-icon" id="step-icon-3">3</div>
+                    <div class="d-none d-md-block">Confirmation</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            <!-- Navigation Tabs -->
+            <ul class="nav nav-tabs mb-4" id="registrationTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab">
+                        <i class="fas fa-user me-2"></i>Personal Info
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link disabled" id="biometric-tab" data-bs-toggle="tab" data-bs-target="#biometric" type="button" role="tab">
+                        <i class="fas fa-upload me-2"></i>Biometric Upload
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link disabled" id="confirmation-tab" data-bs-toggle="tab" data-bs-target="#confirmation" type="button" role="tab">
+                        <i class="fas fa-check-circle me-2"></i>Confirmation
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="registrationTabsContent">
+                <!-- Personal Information Tab -->
+                <div class="tab-pane fade show active" id="personal" role="tabpanel">
+                    <h3 class="mb-4 text-primary"><i class="fas fa-user-circle me-2"></i>Personal Information</h3>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nic" class="form-label">NIC Number</label>
+                            <input type="text" class="form-control" id="nic" placeholder="Enter your NIC number" required>
+                            <div class="requirement-text">Required field</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="fullName" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="fullName" placeholder="Enter your full name" required>
+                            <div class="requirement-text">Required field</div>
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <label for="address" class="form-label">Address</label>
+                            <input type="text" class="form-control" id="address" placeholder="Enter your address" required>
+                            <div class="requirement-text">Required field</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="division" class="form-label">Electoral Division</label>
+                            <input type="text" class="form-control" id="division" placeholder="Enter your electoral division" required>
+                            <div class="requirement-text">Required field</div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="dob" class="form-label">Date of Birth</label>
+                            <input type="date" class="form-control" id="dob" required>
+                            <div class="requirement-text">Required field</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button class="btn btn-primary" id="next-to-biometric" onclick="validatePersonalInfo()">
+                            Next <i class="fas fa-arrow-right ms-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Biometric Upload Tab -->
+                <div class="tab-pane fade" id="biometric" role="tabpanel">
+                    <h3 class="mb-4 text-primary"><i class="fas fa-upload me-2"></i>Biometric Information Upload</h3>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="upload-box">
+                                <h4 class="upload-title text-primary mb-3"><i class="fas fa-user me-2"></i>Facial Image</h4>
+                                <div class="preview-container" id="facePreviewContainer">
+                                    <div class="text-center">
+                                        <div class="upload-icon">
+                                            <i class="fas fa-user-circle"></i>
+                                        </div>
+                                        <p>Upload a clear face photo</p>
+                                    </div>
+                                </div>
+                                <input type="file" id="faceUpload" class="file-input" accept="image/*" onchange="previewFaceImage(this)">
+                                <button class="btn btn-primary mt-2" onclick="document.getElementById('faceUpload').click()">
+                                    <i class="fas fa-upload me-2"></i> Upload Face Image
+                                </button>
+                                <div class="requirement-text mt-1" id="face-upload-status">Not uploaded</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-4">
+                            <div class="upload-box">
+                                <h4 class="upload-title text-primary mb-3"><i class="fas fa-fingerprint me-2"></i>Fingerprint Image</h4>
+                                <div class="preview-container" id="fingerprintPreviewContainer">
+                                    <div class="text-center">
+                                        <div class="upload-icon">
+                                            <i class="fas fa-fingerprint"></i>
+                                        </div>
+                                        <p>Upload a clear fingerprint image</p>
+                                    </div>
+                                </div>
+                                <input type="file" id="fingerprintUpload" class="file-input" accept="image/*" onchange="previewFingerprintImage(this)">
+                                <button class="btn btn-primary mt-2" onclick="document.getElementById('fingerprintUpload').click()">
+                                    <i class="fas fa-upload me-2"></i> Upload Fingerprint
+                                </button>
+                                <div class="requirement-text mt-1" id="fingerprint-upload-status">Not uploaded</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button class="btn btn-secondary" onclick="activateTab('personal-tab')">
+                            <i class="fas fa-arrow-left me-2"></i> Back
+                        </button>
+                        <button class="btn btn-success" id="complete-registration" onclick="registerVoter()" disabled>
+                            <i class="fas fa-check-circle me-2"></i> Complete Registration
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Confirmation Tab -->
+                <div class="tab-pane fade" id="confirmation" role="tabpanel">
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle text-success" style="font-size: 60px;"></i>
+                        <h2 class="my-3 text-primary">Registration Successful!</h2>
+                        <p class="lead">Your voter registration has been completed successfully.</p>
+                        <p>Your unique voter ID is:</p>
+                        <div class="user-id" id="voterId">VR-5X8A2B9C</div>
+                        <p>Please save this ID for future reference.</p>
+                        <button class="btn btn-primary mt-3" onclick="clearForms(); activateTab('personal-tab')">
+                            <i class="fas fa-user-plus me-2"></i> New Registration
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="fas fa-info-circle me-2 text-primary"></i>
+                <strong class="me-auto">System Notification</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="toastMessage">
+                <!-- Message will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Current active tab
+        let currentTab = 'personal-tab';
+
+        // Store uploaded images as Blobs for submission
+        let faceImageBlob = null;
+        let fingerprintImageBlob = null;
+
+        // Track completion status
+        let personalInfoCompleted = false;
+        let faceUploaded = false;
+        let fingerprintUploaded = false;
+
+        // Update the state of the Next button based on form validity
+        function updateNextButtonState() {
+            const nic = document.getElementById('nic').value;
+            const fullName = document.getElementById('fullName').value;
+            const address = document.getElementById('address').value;
+            const division = document.getElementById('division').value;
+            const dob = document.getElementById('dob').value;
+
+            const nextButton = document.getElementById('next-to-biometric');
+            nextButton.disabled = !(nic && fullName && address && division && dob);
+        }
+
+        // Activate a specific tab
+        function activateTab(tabId) {
+            // Don't allow navigation to disabled tabs
+            if (tabId === 'biometric-tab' && !personalInfoCompleted) {
+                showToast("Please complete the personal information first.", "warning");
+                return;
+            }
+
+            if (tabId === 'confirmation-tab' && (!faceUploaded || !fingerprintUploaded)) {
+                showToast("Please upload both face and fingerprint images first.", "warning");
+                return;
+            }
+
+            const tabElement = document.getElementById(tabId);
+            if (tabElement) {
+                const tab = new bootstrap.Tab(tabElement);
+                tab.show();
+                currentTab = tabId;
+            }
+        }
+
+        // Clear all form data and reset the interface
+        function clearForms() {
+            // Clear all form inputs
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => form.reset());
+
+            // Clear specific form fields
+            document.getElementById('nic').value = '';
+            document.getElementById('fullName').value = '';
+            document.getElementById('address').value = '';
+            document.getElementById('division').value = '';
+            document.getElementById('dob').value = '';
+            document.getElementById('faceUpload').value = '';
+            document.getElementById('fingerprintUpload').value = '';
+
+            // Clear preview images
+            const facePreviewContainer = document.getElementById('facePreviewContainer');
+            facePreviewContainer.innerHTML = `
+                <div class="text-center">
+                    <div class="upload-icon">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <p>Upload a clear face photo</p>
+                </div>
+            `;
+
+            const fingerprintPreviewContainer = document.getElementById('fingerprintPreviewContainer');
+            fingerprintPreviewContainer.innerHTML = `
+                <div class="text-center">
+                    <div class="upload-icon">
+                        <i class="fas fa-fingerprint"></i>
+                    </div>
+                    <p>Upload a clear fingerprint image</p>
+                </div>
+            `;
+
+            // Reset blob variables
+            faceImageBlob = null;
+            fingerprintImageBlob = null;
+
+            // Clear any validation messages or error states
+            const errorElements = document.querySelectorAll('.is-invalid, .invalid-feedback');
+            errorElements.forEach(el => el.classList.remove('is-invalid', 'invalid-feedback'));
+
+            // Reset completion status
+            personalInfoCompleted = false;
+            faceUploaded = false;
+            fingerprintUploaded = false;
+
+            // Reset UI elements
+            document.getElementById('face-upload-status').textContent = 'Not uploaded';
+            document.getElementById('fingerprint-upload-status').textContent = 'Not uploaded';
+            document.getElementById('face-upload-status').className = 'requirement-text mt-1';
+            document.getElementById('fingerprint-upload-status').className = 'requirement-text mt-1';
+
+            // Disable tabs and buttons
+            document.getElementById('biometric-tab').classList.add('disabled');
+            document.getElementById('confirmation-tab').classList.add('disabled');
+            document.getElementById('complete-registration').disabled = true;
+
+            // Reset progress icons
+            document.getElementById('step-icon-1').className = 'step-icon active';
+            document.getElementById('step-icon-2').className = 'step-icon';
+            document.getElementById('step-icon-3').className = 'step-icon';
+
+            console.log('All forms cleared and ready for new registration');
+        }
+
+        // Validate personal information before proceeding
+        function validatePersonalInfo() {
+            const nic = document.getElementById('nic').value;
+            const fullName = document.getElementById('fullName').value;
+            const address = document.getElementById('address').value;
+            const division = document.getElementById('division').value;
+            const dob = document.getElementById('dob').value;
+
+            if (!nic || !fullName || !address || !division || !dob) {
+                showToast("Please fill in all required fields.", "error");
+                return;
+            }
+
+            // Mark personal info as completed
+            personalInfoCompleted = true;
+
+            // Enable the next tab
+            document.getElementById('biometric-tab').classList.remove('disabled');
+
+            // Update progress icon
+            document.getElementById('step-icon-1').className = 'step-icon completed';
+            document.getElementById('step-icon-2').className = 'step-icon active';
+
+            // Move to the next tab
+            activateTab('biometric-tab');
+        }
+
+        // Preview face image after upload
+        function previewFaceImage(input) {
+            const previewContainer = document.getElementById('facePreviewContainer');
+
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    previewContainer.innerHTML = `<img src="${e.target.result}" alt="Face preview">`;
+                    faceImageBlob = input.files[0];
+                    faceUploaded = true;
+                    document.getElementById('face-upload-status').textContent = 'Uploaded';
+                    document.getElementById('face-upload-status').className = 'requirement-text mt-1 text-success';
+                    showToast("Face image uploaded successfully!", "success");
+                    updateBiometricCompletion();
+                }
+
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Preview fingerprint image after upload
+        function previewFingerprintImage(input) {
+            const previewContainer = document.getElementById('fingerprintPreviewContainer');
+
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    previewContainer.innerHTML = `<img src="${e.target.result}" alt="Fingerprint preview">`;
+                    fingerprintImageBlob = input.files[0];
+                    fingerprintUploaded = true;
+                    document.getElementById('fingerprint-upload-status').textContent = 'Uploaded';
+                    document.getElementById('fingerprint-upload-status').className = 'requirement-text mt-1 text-success';
+                    showToast("Fingerprint image uploaded successfully!", "success");
+                    updateBiometricCompletion();
+                }
+
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Update biometric completion status
+        function updateBiometricCompletion() {
+            if (faceUploaded && fingerprintUploaded) {
+                document.getElementById('complete-registration').disabled = false;
+                document.getElementById('confirmation-tab').classList.remove('disabled');
+                document.getElementById('step-icon-2').className = 'step-icon completed';
+                document.getElementById('step-icon-3').className = 'step-icon active';
+            }
+        }
+
+        // Register voter
+        async function registerVoter() {
+            // Validate form data
+            const nic = document.getElementById('nic').value;
+            const fullName = document.getElementById('fullName').value;
+            const address = document.getElementById('address').value;
+            const division = document.getElementById('division').value;
+
+            if (!nic || !fullName || !address || !division) {
+                showToast("Please fill in all personal information fields.", "error");
+                activateTab('personal-tab');
+                return;
+            }
+
+            // Check if both images are uploaded
+            if (!faceImageBlob || !fingerprintImageBlob) {
+                showToast("Please upload both face and fingerprint images.", "warning");
+                return;
+            }
+
+            // Create FormData to send to server
+            const formData = new FormData();
+            formData.append('nic', nic);
+            formData.append('full_name', fullName);
+            formData.append('address', address);
+            formData.append('electoral_division', division);
+            formData.append('face_image', faceImageBlob);
+            formData.append('fingerprint', fingerprintImageBlob);
+
+            try {
+                // Show loading state
+                const registerBtn = document.querySelector('#biometric button.btn-success');
+                registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Processing...';
+                registerBtn.disabled = true;
+
+                // Send to server
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Display the voter ID
+                    document.getElementById('voterId').textContent = result.unique_id;
+
+                    // Show confirmation tab
+                    activateTab('confirmation-tab');
+
+                    // Update progress icon
+                    document.getElementById('step-icon-3').className = 'step-icon completed';
+                } else {
+                    showToast("Registration failed: " + result.error, "error");
+                }
+            } catch (error) {
+                console.error("Registration error:", error);
+                showToast("Registration failed due to a technical error.", "error");
+            } finally {
+                // Reset button state
+                const registerBtn = document.querySelector('#biometric button.btn-success');
+                registerBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i> Complete Registration';
+                registerBtn.disabled = false;
+            }
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const toastLiveExample = document.getElementById('liveToast');
+            const toastMessage = document.getElementById('toastMessage');
+
+            // Set message
+            toastMessage.textContent = message;
+
+            // Set appropriate icon and color based on type
+            const toastHeader = toastLiveExample.querySelector('.toast-header');
+            const icon = toastHeader.querySelector('i');
+
+            icon.className = 'fas me-2 ';
+            if (type === 'success') {
+                icon.className += 'fa-check-circle text-success';
+            } else if (type === 'error') {
+                icon.className += 'fa-exclamation-circle text-danger';
+            } else if (type === 'warning') {
+                icon.className += 'fa-exclamation-triangle text-warning';
+            } else {
+                icon.className += 'fa-info-circle text-primary';
+            }
+
+            // Show the toast
+            const toast = new bootstrap.Toast(toastLiveExample);
+            toast.show();
+        }
+
+        // Add event listeners to form fields for real-time validation
+        document.getElementById('nic').addEventListener('input', updateNextButtonState);
+        document.getElementById('fullName').addEventListener('input', updateNextButtonState);
+        document.getElementById('address').addEventListener('input', updateNextButtonState);
+        document.getElementById('division').addEventListener('input', updateNextButtonState);
+        document.getElementById('dob').addEventListener('input', updateNextButtonState);
+    </script>
+</body>
+</html>
