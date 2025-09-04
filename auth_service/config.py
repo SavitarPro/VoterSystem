@@ -15,7 +15,7 @@ class Config:
     AUTH_DB = 'voter_auth_db'
 
     # AI Model paths
-    #FACE_MODEL_PATH = 'models/face_model.pkl'
+    FACE_MODEL_PATH = 'models/face_model.pkl'
 
     # File upload settings
     UPLOAD_FOLDER = 'static/images/uploads'

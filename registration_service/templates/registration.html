@@ -316,6 +316,56 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+        window.addEventListener('load', function() {
+            checkAuthentication();
+        });
+
+        async function checkAuthentication() {
+            try {
+                const response = await fetch('/check-auth');
+                const data = await response.json();
+
+                if (!data.authenticated) {
+                    // Not logged in, redirect to login
+                    window.location.href = '/login';
+                } else {
+                    // Show logged in status
+                    const username = data.user;
+                    if (username) {
+                        // Add user info to the UI
+                        const header = document.querySelector('.card-header');
+                        if (header) {
+                            const existingUserInfo = header.querySelector('.user-info');
+                            if (!existingUserInfo) {
+                                header.innerHTML += `
+                                    <div class="user-info text-end">
+                                        <small class="text-light">Operator: <strong>${username}</strong></small>
+                                        <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">
+                                            <i class="fas fa-sign-out-alt"></i> Logout
+                                        </button>
+                                    </div>
+                                `;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = '/login';
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/logout', { method: 'POST' });
+            } catch (error) {
+                console.error('Logout error:', error);
+            } finally {
+                window.location.href = '/login';
+            }
+        }
+
+
         // Current active tab
         let currentTab = 'personal-tab';
 
@@ -515,8 +565,9 @@
             const fullName = document.getElementById('fullName').value;
             const address = document.getElementById('address').value;
             const division = document.getElementById('division').value;
+            const dob = document.getElementById('dob').value;
 
-            if (!nic || !fullName || !address || !division) {
+            if (!nic || !fullName || !address || !division || !dob) {
                 showToast("Please fill in all personal information fields.", "error");
                 activateTab('personal-tab');
                 return;
@@ -534,16 +585,13 @@
             formData.append('full_name', fullName);
             formData.append('address', address);
             formData.append('electoral_division', division);
+            formData.append('dob', dob);
             formData.append('face_image', faceImageBlob);
             formData.append('fingerprint', fingerprintImageBlob);
 
             try {
-                // Show loading state
-                const registerBtn = document.querySelector('#biometric button.btn-success');
-                registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Processing...';
-                registerBtn.disabled = true;
 
-                // Send to server
+                // Send to server with authentication header
                 const response = await fetch('/register', {
                     method: 'POST',
                     body: formData

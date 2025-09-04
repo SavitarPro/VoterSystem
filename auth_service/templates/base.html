@@ -11,12 +11,12 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('main.index') }}">
+            <a class="navbar-brand" href="{{ url_for('auth.index') }}">
                 <i class="fas fa-fingerprint"></i> Voter Authentication System
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="{{ url_for('main.index') }}">Dashboard</a>
-                <a class="nav-link" href="{{ url_for('main.authentication') }}">Authentication</a>
+                <a class="nav-link" href="{{ url_for('auth.index') }}">Dashboard</a>
+                <a class="nav-link" href="{{ url_for('auth.authentication') }}">Authentication</a>
             </div>
         </div>
     </nav>

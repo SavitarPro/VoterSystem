@@ -2,8 +2,14 @@
   {
     "index": 0,
     "timestamp": "2025-08-31 23:50:12.445812",
-    "votes": [],
+    "votes": [
+      {
+        "voter_nic": "199819800867",
+        "timestamp": "2025-09-04 19:43:32.182736",
+        "vote_id": "vote_1_199819800867"
+      }
+    ],
     "previous_hash": "0",
-    "hash": "947aaaf335610468b9f8094bf57ef671e7665ec8b8260086f2a057c6d0c2eca3"
+    "hash": "6dc6b45dfee1f1e78db7fe3fa70c92d6994c5154e761d7c6c758a16042e48d3c"
   }
 ]

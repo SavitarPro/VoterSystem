@@ -18,8 +18,8 @@ def check_nic_exists(nic):
             conn.close()
 
 
-def register_voter(unique_id, nic, full_name, address, electoral_division, face_image_path, fingerprint_path):
-    """Register a new voter"""
+def register_voter(unique_id, nic, full_name, address, electoral_division, dob, face_image_path, fingerprint_path):
+    """Register a new voter with date of birth"""
     conn = None
     central_conn = None
     validity_conn = None
@@ -29,8 +29,8 @@ def register_voter(unique_id, nic, full_name, address, electoral_division, face_
         central_conn = get_central_db_connection()
         central_cur = central_conn.cursor()
         central_cur.execute(
-            'INSERT INTO central_voter_registry (nic, electoral_division) VALUES (%s, %s)',
-            (nic, electoral_division)
+            'INSERT INTO central_voter_registry (nic, electoral_division, date_of_birth) VALUES (%s, %s, %s)',
+            (nic, electoral_division, dob)
         )
         central_conn.commit()
         central_cur.close()
@@ -39,10 +39,10 @@ def register_voter(unique_id, nic, full_name, address, electoral_division, face_
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
-            '''INSERT INTO voters (unique_id, nic, full_name, address, electoral_division, face_image_path,
-                                   fingerprint_path)
-               VALUES (%s, %s, %s, %s, %s, %s, %s)''',
-            (unique_id, nic, full_name, address, electoral_division, face_image_path, fingerprint_path)
+            '''INSERT INTO voters (unique_id, nic, full_name, address, electoral_division, date_of_birth, 
+                                   face_image_path, fingerprint_path)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
+            (unique_id, nic, full_name, address, electoral_division, dob, face_image_path, fingerprint_path)
         )
         conn.commit()
         cur.close()
@@ -51,9 +51,9 @@ def register_voter(unique_id, nic, full_name, address, electoral_division, face_
         validity_conn = get_validity_db_connection()
         validity_cur = validity_conn.cursor()
         validity_cur.execute(
-            '''INSERT INTO voters (unique_id, nic, full_name, electoral_division)
-               VALUES (%s, %s, %s, %s)''',
-            (unique_id, nic, full_name, electoral_division)
+            '''INSERT INTO voters (unique_id, nic, full_name, electoral_division, date_of_birth)
+               VALUES (%s, %s, %s, %s, %s)''',
+            (unique_id, nic, full_name, electoral_division, dob)
         )
         validity_conn.commit()
         validity_cur.close()
