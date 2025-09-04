@@ -67,7 +67,6 @@
             const password = document.getElementById('password').value;
             const messageDiv = document.getElementById('loginMessage');
 
-            // Clear previous messages
             messageDiv.classList.add('d-none');
             messageDiv.classList.remove('alert-success', 'alert-danger');
 
@@ -90,7 +89,6 @@
                 if (result.success) {
                     showMessage('Login successful! Redirecting...', 'success');
 
-                    // Redirect to main page after 1 second
                     setTimeout(() => {
                         window.location.href = '/';
                     }, 1000);
@@ -110,7 +108,6 @@
             messageDiv.classList.add(type === 'success' ? 'alert-success' : 'alert-danger');
         }
 
-        // Check if already logged in
         window.addEventListener('load', function() {
             fetch('/check-auth')
                 .then(response => response.json())
@@ -120,7 +117,6 @@
                     }
                 })
                 .catch(() => {
-                    // Not logged in, stay on login page
                 });
         });
     </script>

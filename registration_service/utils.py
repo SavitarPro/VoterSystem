@@ -3,14 +3,11 @@ import psycopg2
 from config import config
 
 def init_app(app):
-    """Initialize the application"""
-    # Create upload directory if it doesn't exist
     import os
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
 
 def get_db_connection():
-    """Get database connection for registration service"""
     return psycopg2.connect(
         host=config.DB_HOST,
         port=config.DB_PORT,
@@ -20,7 +17,6 @@ def get_db_connection():
     )
 
 def get_central_db_connection():
-    """Get central database connection"""
     return psycopg2.connect(
         host=config.DB_HOST,
         port=config.DB_PORT,
@@ -30,7 +26,6 @@ def get_central_db_connection():
     )
 
 def get_validity_db_connection():
-    """Get validity database connection"""
     return psycopg2.connect(
         host=config.DB_HOST,
         port=config.DB_PORT,

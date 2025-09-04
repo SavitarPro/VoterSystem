@@ -3,7 +3,6 @@ from utils import get_db_connection, get_central_db_connection, get_validity_db_
 
 
 def check_nic_exists(nic):
-    """Check if NIC already exists in central database"""
     try:
         conn = get_central_db_connection()
         cur = conn.cursor()
@@ -19,13 +18,11 @@ def check_nic_exists(nic):
 
 
 def register_voter(unique_id, nic, full_name, address, electoral_division, dob, face_image_path, fingerprint_path):
-    """Register a new voter with date of birth"""
     conn = None
     central_conn = None
     validity_conn = None
 
     try:
-        # First add to central registry
         central_conn = get_central_db_connection()
         central_cur = central_conn.cursor()
         central_cur.execute(
@@ -35,7 +32,6 @@ def register_voter(unique_id, nic, full_name, address, electoral_division, dob, 
         central_conn.commit()
         central_cur.close()
 
-        # Then add to registration database
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
@@ -47,7 +43,6 @@ def register_voter(unique_id, nic, full_name, address, electoral_division, dob, 
         conn.commit()
         cur.close()
 
-        # Finally add to validity database
         validity_conn = get_validity_db_connection()
         validity_cur = validity_conn.cursor()
         validity_cur.execute(
@@ -62,7 +57,6 @@ def register_voter(unique_id, nic, full_name, address, electoral_division, dob, 
 
     except Exception as e:
         print(f"Error registering voter: {e}")
-        # Rollback all changes if any part fails
         try:
             if central_conn:
                 central_cur = central_conn.cursor()
@@ -93,7 +87,6 @@ def register_voter(unique_id, nic, full_name, address, electoral_division, dob, 
         return False
 
     finally:
-        # Close all connections
         if conn:
             conn.close()
         if central_conn:

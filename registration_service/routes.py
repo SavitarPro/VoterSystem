@@ -11,7 +11,6 @@ from config import config
 registration_bp = Blueprint('registration', __name__)
 
 
-# Authentication decorator (using sessions)
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -21,24 +20,21 @@ def login_required(f):
 
     return decorated
 
-
 @registration_bp.route('/')
 def index():
-    # Check if user is logged in using session
+    
     if not session.get('logged_in'):
         return redirect(url_for('registration.login_page'))
 
     return render_template('registration.html')
 
-
 @registration_bp.route('/login')
 def login_page():
-    # If already logged in, redirect to main page
+    
     if session.get('logged_in'):
         return redirect(url_for('registration.index'))
 
     return render_template('login.html')
-
 
 @registration_bp.route('/login', methods=['POST'])
 def login():
@@ -53,12 +49,11 @@ def login():
         if not username or not password:
             return jsonify({'success': False, 'error': 'Username and password required'}), 400
 
-        # Validate credentials
         valid_username = config.REGISTRATION_USER
         valid_password = config.REGISTRATION_PASSWORD
 
         if username == valid_username and password == valid_password:
-            # Set session variables
+            
             session['logged_in'] = True
             session['username'] = username
             session['login_time'] = datetime.now().isoformat()
@@ -75,17 +70,15 @@ def login():
         print(f"Login error: {e}")
         return jsonify({'success': False, 'error': 'Login failed'}), 500
 
-
 @registration_bp.route('/logout', methods=['POST'])
 def logout():
-    # Clear session
+    
     session.clear()
     return jsonify({'success': True, 'message': 'Logged out successfully'})
 
-
 @registration_bp.route('/check-auth', methods=['GET'])
 def check_auth():
-    # Check if user is authenticated
+    
     if session.get('logged_in'):
         return jsonify({
             'authenticated': True,
@@ -95,27 +88,24 @@ def check_auth():
     else:
         return jsonify({'authenticated': False}), 401
 
-
 @registration_bp.route('/register', methods=['POST'])
-@login_required  # Protect the registration endpoint
+@login_required  
 def register():
     try:
-        # Get the current user from session
+        
         current_user = session.get('username', 'unknown')
         print(f"Registration attempt by user: {current_user}")
 
-        # Get form data
         nic = request.form.get('nic')
         full_name = request.form.get('full_name')
         address = request.form.get('address')
         electoral_division = request.form.get('electoral_division')
         dob = request.form.get('dob')
 
-        # Check if all required fields are present
         if not all([nic, full_name, address, electoral_division, dob]):
             return jsonify({'success': False, 'error': 'All fields are required'}), 400
 
-        # Check if files are present
+        
         if 'face_image' not in request.files or 'fingerprint' not in request.files:
             return jsonify({'success': False, 'error': 'Missing image files'}), 400
 
@@ -126,26 +116,22 @@ def register():
             return jsonify({'success': False, 'error': 'No selected file'}), 400
 
         if face_image and allowed_file(face_image.filename) and fingerprint and allowed_file(fingerprint.filename):
-            # Check if NIC already exists
+            
             if check_nic_exists(nic):
                 return jsonify({'success': False, 'error': 'NIC already registered'}), 400
 
-            # Generate unique ID
             unique_id = str(uuid.uuid4())
 
-            # Create secure filenames with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             face_filename = secure_filename(f"{unique_id}_{timestamp}_face.jpg")
             fingerprint_filename = secure_filename(f"{unique_id}_{timestamp}_fingerprint.jpg")
 
-            # Save files
             face_path = os.path.join(config.UPLOAD_FOLDER, face_filename)
             fingerprint_path = os.path.join(config.UPLOAD_FOLDER, fingerprint_filename)
 
             face_image.save(face_path)
             fingerprint.save(fingerprint_path)
 
-            # Register voter with DOB
             if register_voter(unique_id, nic, full_name, address, electoral_division, dob, face_filename,
                               fingerprint_filename):
                 return jsonify({
