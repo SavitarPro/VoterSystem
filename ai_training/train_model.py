@@ -16,32 +16,32 @@ class FaceRecognizer:
         self.model = None
         self.label_encoder = LabelEncoder()
 
-        # Load Haar cascade for face detection
+        
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
         )
 
     def extract_face_embeddings(self, face_image):
-        """Extract embeddings from face image"""
-        # Resize to consistent size
+        
+        
         face_resized = cv2.resize(face_image, (100, 100))
 
-        # Convert to grayscale if needed
+        
         if len(face_resized.shape) == 3:
             face_gray = cv2.cvtColor(face_resized, cv2.COLOR_BGR2GRAY)
         else:
             face_gray = face_resized
 
-        # Apply histogram equalization for better contrast
+        
         face_eq = cv2.equalizeHist(face_gray)
 
-        # Flatten and normalize
+        
         embedding = face_eq.flatten().astype(np.float32) / 255.0
 
         return embedding
 
     def detect_faces(self, image):
-        """Detect faces using Haar cascade"""
+        
         if len(image.shape) == 3:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
@@ -56,7 +56,7 @@ class FaceRecognizer:
         return faces
 
     def load_training_data(self, training_dir):
-        """Load face images from training directory"""
+        
         self.known_face_encodings = []
         self.known_face_names = []
 
@@ -74,17 +74,17 @@ class FaceRecognizer:
                 if image_name.lower().endswith(('.jpg', '.jpeg', '.png')):
                     image_path = os.path.join(person_dir, image_name)
 
-                    # Load image using OpenCV
+                    
                     image = cv2.imread(image_path)
                     if image is None:
                         print(f"Could not load image: {image_path}")
                         continue
 
-                    # Detect faces
+                    
                     faces = self.detect_faces(image)
 
                     if len(faces) > 0:
-                        # Use the first detected face
+                        
                         x, y, w, h = faces[0]
                         face_roi = image[y:y + h, x:x + w]
 
@@ -106,19 +106,19 @@ class FaceRecognizer:
         return len(self.known_face_encodings) > 0
 
     def train_model(self):
-        """Train SVM classifier on face encodings"""
+        
         if len(self.known_face_encodings) == 0:
             print("No training data available")
             return False
 
-        # Convert to numpy arrays
+        
         X = np.array(self.known_face_encodings)
         y = np.array(self.known_face_names)
 
-        # Encode labels
+        
         encoded_labels = self.label_encoder.fit_transform(y)
 
-        # Train SVM classifier
+        
         self.model = svm.SVC(kernel='linear', probability=True, random_state=42)
         self.model.fit(X, encoded_labels)
 
@@ -126,12 +126,12 @@ class FaceRecognizer:
         return True
 
     def save_model(self, model_path):
-        """Save trained model to file"""
+        
         if self.model is None:
             print("No model to save")
             return False
 
-        # Create directory if it doesn't exist
+        
         os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
         with open(model_path, 'wb') as f:
@@ -145,7 +145,7 @@ class FaceRecognizer:
         return True
 
 
-# Quick training script
+
 def train_existing_model():
     face_recognizer = FaceRecognizer()
     training_dir = 'ai_training/data/faces'

@@ -36,7 +36,7 @@
             <div class="col-md-10 mx-auto">
                 <div class="card">
                     <div class="card-header bg-success text-white">
-                        <h4 class="mb-0">Select Your Party</h4>
+                        <h4 class="mb-0">Select Your Party/ ඔබේ පක්ෂය තෝරන්න/ உங்கள் கட்சியைத் தேர்ந்தெடுக்கவும்</h4>
                     </div>
                     <div class="card-body">
                         <div class="alert alert-info">
@@ -80,7 +80,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             let selectedParty = null;
 
-            // Keyboard selection
             document.addEventListener('keypress', function(e) {
                 const partyCode = e.key;
                 if ('12345'.includes(partyCode)) {
@@ -88,7 +87,6 @@
                 }
             });
 
-            // Button selection
             document.querySelectorAll('.select-party').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const partyCode = this.dataset.party;
@@ -96,7 +94,6 @@
                 });
             });
 
-            // Card selection
             document.querySelectorAll('.party-card').forEach(card => {
                 card.addEventListener('click', function() {
                     const partyCode = this.dataset.party;
@@ -105,7 +102,6 @@
             });
 
             function selectParty(partyCode) {
-                // Update visual selection
                 document.querySelectorAll('.party-card').forEach(card => {
                     card.classList.remove('selected');
                 });
@@ -113,7 +109,6 @@
 
                 selectedParty = partyCode;
 
-                // Show confirmation
                 const partyName = document.querySelector(`.party-card[data-party="${partyCode}"] h5`).textContent;
                 if (confirm(`Are you sure you want to vote for ${partyName}? This action cannot be undone.`)) {
                     castVote(partyCode);

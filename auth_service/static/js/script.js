@@ -98,9 +98,10 @@ class AuthenticationApp {
         }
 
         if (this.isRunning) {
-            setTimeout(() => this.processVideo(), 1000); // Process every second
+            setTimeout(() => this.processVideo(), 1000);
         }
     }
+
 
     displayVoterInfo(voter, confidence) {
         this.currentVoter = voter;
@@ -110,18 +111,17 @@ class AuthenticationApp {
 
         document.getElementById('infoNIC').textContent = voter.nic;
         document.getElementById('infoName').textContent = voter.full_name;
-        document.getElementById('infoDOB').textContent = voter.date_of_birth || 'N/A';
         document.getElementById('infoAddress').textContent = voter.address || 'N/A';
-        document.getElementById('infoPhone').textContent = voter.phone_number || 'N/A';
+        document.getElementById('infoDivision').textContent = voter.electoral_division || 'N/A';
         document.getElementById('infoConfidence').textContent = `${(confidence * 100).toFixed(1)}%`;
 
-        if (voter.photo_path) {
-            document.getElementById('voterPhoto').src = voter.photo_path;
+        if (voter.face_image_path) {
+            document.getElementById('voterPhoto').src = voter.face_image_path;
         }
 
         document.getElementById('confirmBtn').disabled = false;
 
-        // Color code confidence
+
         const confidenceCell = document.getElementById('infoConfidence');
         confidenceCell.className = '';
         if (confidence > 0.7) {
@@ -179,7 +179,7 @@ class AuthenticationApp {
     }
 }
 
-// Initialize app when page loads
+
 document.addEventListener('DOMContentLoaded', () => {
     window.authApp = new AuthenticationApp();
 });

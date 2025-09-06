@@ -68,7 +68,6 @@
             </div>
 
             <div class="row">
-                <!-- Left Column - Active Monitoring -->
                 <div class="col-lg-8">
                     <div class="dashboard-card p-4">
                         <h4 class="mb-4">
@@ -76,7 +75,6 @@
                             Live Monitoring
                         </h4>
 
-                        <!-- Voter Information -->
                         <div class="voter-info mb-4" id="voterInfoSection">
                             <div class="text-center">
                                 <i class="fas fa-user fa-3x mb-2"></i>
@@ -95,7 +93,6 @@
                             </div>
                         </div>
 
-                        <!-- Video Feed -->
                         <div class="text-center mb-4">
                             <img id="liveVideoFeed" class="video-feed"
                                  src="https://via.placeholder.com/640x360/007bff/ffffff?text=Waiting+for+Video+Feed"
@@ -113,22 +110,23 @@
                                     <i class="fas fa-broadcast-tower me-1"></i>
                                     <span id="connectionStatus">Connecting...</span>
                                 </span>
+                                <span class="badge bg-warning ms-2" id="cameraInfo">
+                                    <i class="fas fa-camera me-1"></i>
+                                    <span id="cameraType">Checking...</span>
+                                </span>
                             </div>
                         </div>
 
-                        <!-- Detection Status -->
                         <div class="alert alert-info" id="detectionStatus">
                             <i class="fas fa-info-circle me-2"></i>
                             Waiting for voter authentication...
                         </div>
 
-                        <!-- Fraud Alert -->
                         <div class="alert alert-danger" id="fraudAlert" style="display: none;">
                             <h5><i class="fas fa-exclamation-triangle me-2"></i>FRAUD DETECTED!</h5>
                             <p>Multiple persons detected in voting booth. Voting has been frozen.</p>
                         </div>
 
-                        <!-- Officer Actions -->
                         <div class="text-center" id="actionButtons" style="display: none;">
                             <h5 class="mb-3">Officer Decision Required</h5>
                             <button class="btn btn-success btn-lg me-3" onclick="resolveFraud('approve')">
@@ -140,7 +138,6 @@
                         </div>
                     </div>
 
-                    <!-- Detection Log -->
                     <div class="dashboard-card p-4 mt-4">
                         <h5><i class="fas fa-history me-2"></i>Detection Log</h5>
                         <div class="detection-log" id="detectionLog">
@@ -149,7 +146,6 @@
                     </div>
                 </div>
 
-                <!-- Right Column - Active Sessions -->
                 <div class="col-lg-4">
                     <div class="dashboard-card p-4">
                         <h4 class="mb-4">
@@ -177,7 +173,6 @@
                         </div>
                     </div>
 
-                    <!-- System Stats -->
                     <div class="dashboard-card p-4 mt-4">
                         <h5><i class="fas fa-chart-bar me-2"></i>System Statistics</h5>
                         <div class="row text-center">
@@ -200,309 +195,340 @@
         </div>
     </div>
 
-// Replace the entire script section with this:
-
-// Replace the entire script section with this fixed version:
-
     <script>
-    let currentVoter = null;
-    let monitoringInterval;
-    let startTime = null;
-    let isAuthenticated = false;
+        let currentVoter = null;
+        let monitoringInterval;
+        let startTime = null;
+        let isAuthenticated = false;
+        let lastDetectionData = {
+            personCount: 0,
+            imageData: '',
+            timestamp: 0
+        };
 
-    // Initialize dashboard
-    async function initializeDashboard() {
-        isAuthenticated = await checkAuth();
-        if (!isAuthenticated) return;
+        async function initializeDashboard() {
+            isAuthenticated = await checkAuth();
+            if (!isAuthenticated) return;
 
-        startMonitoring();
-        updateSessions();
-    }
+            startMonitoring();
+            updateSessions();
+        }
 
-    // Check authentication with proper error handling
-    async function checkAuth() {
-        try {
-            const response = await fetch('/api/check_auth');
-            if (response.status === 401) {
-                // Redirect to login if not authenticated
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/check_auth');
+                if (response.status === 401) {
+                    window.location.href = '/';
+                    return false;
+                }
+                if (!response.ok) {
+                    throw new Error('Auth check failed');
+                }
+                return true;
+            } catch (error) {
+                console.error('Authentication error:', error);
                 window.location.href = '/';
                 return false;
             }
-            if (!response.ok) {
-                throw new Error('Auth check failed');
-            }
-            return true;
-        } catch (error) {
-            console.error('Authentication error:', error);
-            window.location.href = '/';
-            return false;
         }
-    }
 
-    // Start monitoring with authentication check
-    function startMonitoring() {
-        monitoringInterval = setInterval(async () => {
-            if (!isAuthenticated) {
-                isAuthenticated = await checkAuth();
+        function startMonitoring() {
+            monitoringInterval = setInterval(async () => {
                 if (!isAuthenticated) {
-                    clearInterval(monitoringInterval);
+                    isAuthenticated = await checkAuth();
+                    if (!isAuthenticated) {
+                        clearInterval(monitoringInterval);
+                        return;
+                    }
+                }
+                await updateMonitoringData();
+                await updateSessions();
+            }, 1000);
+        }
+
+        async function updateMonitoringData() {
+            try {
+                const response = await fetch('/api/active_monitoring');
+
+                if (response.status === 401) {
+                    isAuthenticated = false;
+                    window.location.href = '/';
                     return;
                 }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error('Server error:', data.error);
+                    return;
+                }
+
+                if (data.current_voter) {
+                    updateVoterInfo(data.current_voter);
+                    updateVideoFeed(data.current_voter);
+                    updateDetectionStats(data.current_voter);
+                } else {
+                    showNoActiveVoters();
+                }
+
+                updateSystemStats(data.stats);
+                await updateCameraInfo();
+
+            } catch (error) {
+                console.error('Error updating monitoring:', error);
+                document.getElementById('connectionStatus').className = 'badge bg-danger';
+                document.getElementById('connectionStatus').textContent = 'Offline';
             }
-            await updateMonitoringData();
-            await updateSessions();
-        }, 1000); // Update every second
-    }
-
-    // Update monitoring data with error handling
-    async function updateMonitoringData() {
-        try {
-            const response = await fetch('/api/active_monitoring');
-
-            if (response.status === 401) {
-                // Session expired, redirect to login
-                isAuthenticated = false;
-                window.location.href = '/';
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            if (data.error) {
-                console.error('Server error:', data.error);
-                return;
-            }
-
-            if (data.current_voter) {
-                updateVoterInfo(data.current_voter);
-                updateVideoFeed(data.current_voter);
-                updateDetectionStats(data.current_voter);
-            } else {
-                showNoActiveVoters();
-            }
-
-            updateSystemStats(data.stats);
-
-        } catch (error) {
-            console.error('Error updating monitoring:', error);
-            document.getElementById('connectionStatus').className = 'badge bg-danger';
-            document.getElementById('connectionStatus').textContent = 'Offline';
         }
-    }
 
-    // Show no active voters state
-    function showNoActiveVoters() {
-        document.getElementById('liveVideoFeed').src =
-            'https://via.placeholder.com/640x360/6c757d/ffffff?text=No+Active+Voters';
-        document.getElementById('voterName').textContent = 'Waiting for voter authentication...';
-        document.getElementById('voterNIC').textContent = '-';
-        document.getElementById('voterDivision').textContent = '-';
-        document.getElementById('voterStatus').textContent = '-';
-        document.getElementById('personCount').textContent = '0';
-        document.getElementById('duration').textContent = '0m';
-        document.getElementById('detectionStatus').className = 'alert alert-info';
-        document.getElementById('detectionStatus').innerHTML =
-            '<i class="fas fa-info-circle me-2"></i>Waiting for voter authentication...';
-        document.getElementById('fraudAlert').style.display = 'none';
-        document.getElementById('actionButtons').style.display = 'none';
-    }
-
-    // Update voter information
-    function updateVoterInfo(voter) {
-        if (!currentVoter || currentVoter.nic !== voter.nic) {
-            currentVoter = voter;
-            startTime = Date.now();
-
-            document.getElementById('voterName').textContent = voter.full_name;
-            document.getElementById('voterNIC').textContent = voter.nic;
-            document.getElementById('voterDivision').textContent = voter.electoral_division;
-            document.getElementById('voterStatus').textContent = voter.status;
-
-            document.getElementById('detectionStatus').className = 'alert alert-success';
+        function showNoActiveVoters() {
+            document.getElementById('liveVideoFeed').src =
+                'https://via.placeholder.com/640x360/6c757d/ffffff?text=No+Active+Voters';
+            document.getElementById('voterName').textContent = 'Waiting for voter authentication...';
+            document.getElementById('voterNIC').textContent = '-';
+            document.getElementById('voterDivision').textContent = '-';
+            document.getElementById('voterStatus').textContent = '-';
+            document.getElementById('personCount').textContent = '0';
+            document.getElementById('duration').textContent = '0m';
+            document.getElementById('detectionStatus').className = 'alert alert-info';
             document.getElementById('detectionStatus').innerHTML =
-                '<i class="fas fa-user-check me-2"></i>Monitoring voter: ' + voter.nic;
+                '<i class="fas fa-info-circle me-2"></i>Waiting for voter authentication...';
+            document.getElementById('fraudAlert').style.display = 'none';
+            document.getElementById('actionButtons').style.display = 'none';
+
+            lastDetectionData = {
+                personCount: 0,
+                imageData: '',
+                timestamp: 0
+            };
         }
 
-        // Update duration
-        if (startTime) {
-            const duration = Math.round((Date.now() - startTime) / 1000); // seconds
-            const minutes = Math.floor(duration / 60);
-            const seconds = duration % 60;
-            document.getElementById('duration').textContent = `${minutes}m ${seconds}s`;
-        }
-    }
+        function updateVoterInfo(voter) {
+            if (!currentVoter || currentVoter.nic !== voter.nic) {
+                currentVoter = voter;
+                startTime = Date.now();
 
-    // Update video feed
-    function updateVideoFeed(voter) {
-        if (voter.last_frame) {
-            document.getElementById('liveVideoFeed').src = voter.last_frame;
-            document.getElementById('connectionStatus').className = 'badge bg-success';
-            document.getElementById('connectionStatus').textContent = 'Live';
-        }
+                document.getElementById('voterName').textContent = voter.full_name;
+                document.getElementById('voterNIC').textContent = voter.nic;
+                document.getElementById('voterDivision').textContent = voter.electoral_division;
+                document.getElementById('voterStatus').textContent = voter.status;
 
-        if (voter.last_detection) {
-            const count = voter.last_detection.person_count;
-            document.getElementById('personCount').textContent = count;
-
-            if (count >= 2) {
-                document.getElementById('fraudAlert').style.display = 'block';
-                document.getElementById('actionButtons').style.display = 'block';
-                document.getElementById('detectionStatus').className = 'alert alert-danger';
-                document.getElementById('detectionStatus').innerHTML =
-                    '<i class="fas fa-exclamation-triangle me-2"></i>FRAUD DETECTED: ' + count + ' persons';
-            } else {
-                document.getElementById('fraudAlert').style.display = 'none';
-                document.getElementById('actionButtons').style.display = 'none';
                 document.getElementById('detectionStatus').className = 'alert alert-success';
                 document.getElementById('detectionStatus').innerHTML =
-                    '<i class="fas fa-check-circle me-2"></i>Normal: ' + count + ' person detected';
+                    '<i class="fas fa-user-check me-2"></i>Monitoring voter: ' + voter.nic;
             }
 
-            // Add to log
-            addToLog(voter.nic, count);
+            if (startTime) {
+                const duration = Math.round((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(duration / 60);
+                const seconds = duration % 60;
+                document.getElementById('duration').textContent = `${minutes}m ${seconds}s`;
+            }
         }
-    }
 
-    // Add to detection log
-    function addToLog(nic, count) {
-        const log = document.getElementById('detectionLog');
-        const entry = document.createElement('div');
-        entry.className = 'border-bottom pb-2 mb-2';
-        entry.innerHTML = `
-            <div class="d-flex justify-content-between">
-                <span>${nic}</span>
-                <span class="badge bg-${count >= 2 ? 'danger' : 'success'}">
-                    ${count} person(s)
-                </span>
-            </div>
-            <small class="text-muted">${new Date().toLocaleTimeString()}</small>
-        `;
+        function updateVideoFeed(voter) {
+            if (voter.last_frame) {
+                document.getElementById('liveVideoFeed').src = voter.last_frame;
+                document.getElementById('connectionStatus').className = 'badge bg-success';
+                document.getElementById('connectionStatus').textContent = 'Live';
+            }
 
-        // Keep only last 10 entries
-        if (log.children.length >= 10) {
-            log.removeChild(log.lastChild);
+            if (voter.last_detection) {
+                const count = voter.last_detection.person_count;
+                const imageUrl = voter.last_frame || '';
+
+                updateDetectionData(count, imageUrl);
+
+                if (count >= 2) {
+                    document.getElementById('fraudAlert').style.display = 'block';
+                    document.getElementById('actionButtons').style.display = 'block';
+                    document.getElementById('detectionStatus').className = 'alert alert-danger';
+                    document.getElementById('detectionStatus').innerHTML =
+                        '<i class="fas fa-exclamation-triangle me-2"></i>FRAUD DETECTED: ' + count + ' persons';
+                } else {
+                    document.getElementById('fraudAlert').style.display = 'none';
+                    document.getElementById('actionButtons').style.display = 'none';
+                    document.getElementById('detectionStatus').className = 'alert alert-success';
+                    document.getElementById('detectionStatus').innerHTML =
+                        '<i class="fas fa-check-circle me-2"></i>Normal: ' + count + ' person detected';
+                }
+
+                addToLog(voter.nic, count);
+            }
         }
-        log.prepend(entry);
-    }
 
-    // Update system statistics
-    function updateSystemStats(stats) {
-        document.getElementById('totalDetections').textContent = stats.total_detections || 0;
-        document.getElementById('fraudCases').textContent = stats.fraud_cases || 0;
-    }
+        function updateDetectionData(personCount, imageData) {
+            lastDetectionData = {
+                personCount: personCount,
+                imageData: imageData,
+                timestamp: Date.now()
+            };
 
-    // Update sessions list with error handling
-    async function updateSessions() {
-        try {
-            const response = await fetch('/api/active_sessions');
+            document.getElementById('personCount').textContent = personCount;
+        }
 
-            if (response.status === 401) {
-                isAuthenticated = false;
+        function addToLog(nic, count) {
+            const log = document.getElementById('detectionLog');
+            const entry = document.createElement('div');
+            entry.className = 'border-bottom pb-2 mb-2';
+            entry.innerHTML = `
+                <div class="d-flex justify-content-between">
+                    <span>${nic}</span>
+                    <span class="badge bg-${count >= 2 ? 'danger' : 'success'}">
+                        ${count} person(s)
+                    </span>
+                </div>
+                <small class="text-muted">${new Date().toLocaleTimeString()}</small>
+            `;
+
+            if (log.children.length >= 10) {
+                log.removeChild(log.lastChild);
+            }
+            log.prepend(entry);
+        }
+
+        function updateSystemStats(stats) {
+            document.getElementById('totalDetections').textContent = stats.total_detections || 0;
+            document.getElementById('fraudCases').textContent = stats.fraud_cases || 0;
+        }
+
+        async function updateCameraInfo() {
+            try {
+                const response = await fetch('/api/camera_info');
+                if (response.ok) {
+                    const cameraInfo = await response.json();
+                    if (currentVoter && cameraInfo[currentVoter.nic]) {
+                        const info = cameraInfo[currentVoter.nic];
+                        const cameraType = info.camera_type || `Camera ${info.camera_index}`;
+                        document.getElementById('cameraType').textContent = cameraType;
+
+                        let badgeClass = 'badge bg-secondary ms-2';
+                        if (info.is_obs_camera) {
+                            badgeClass = 'badge bg-success ms-2';
+                        } else if (info.is_main_camera) {
+                            badgeClass = 'badge bg-primary ms-2';
+                        }
+                        document.getElementById('cameraInfo').className = badgeClass;
+                    }
+                }
+            } catch (error) {
+                console.error('Error getting camera info:', error);
+            }
+        }
+
+        async function updateSessions() {
+            try {
+                const response = await fetch('/api/active_sessions');
+
+                if (response.status === 401) {
+                    isAuthenticated = false;
+                    window.location.href = '/';
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch sessions');
+                }
+
+                const sessions = await response.json();
+
+                const table = document.getElementById('sessionsTable');
+                table.innerHTML = '';
+
+                if (Object.keys(sessions).length === 0) {
+                    table.innerHTML = `
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">
+                                No active sessions
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                for (const [nic, data] of Object.entries(sessions)) {
+                    const duration = Math.round((Date.now()/1000 - data.start_time) / 60);
+                    table.innerHTML += `
+                        <tr>
+                            <td><code>${nic}</code></td>
+                            <td>
+                                <span class="badge bg-success">Active</span>
+                                <br>
+                                <small class="text-muted">${data.person_count} persons</small>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="focusVoter('${nic}')">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error updating sessions:', error);
+            }
+        }
+
+        async function focusVoter(nic) {
+            try {
+                const response = await fetch('/api/start_monitoring', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ voter_nic: nic })
+                });
+
+                if (response.ok) {
+                    await updateMonitoringData();
+                }
+            } catch (error) {
+                console.error('Error focusing voter:', error);
+            }
+        }
+
+        async function resolveFraud(action) {
+            if (!currentVoter) return;
+
+            try {
+                const response = await fetch('/api/resolve_fraud', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        voter_nic: currentVoter.nic,
+                        action: action,
+                        person_count: lastDetectionData.personCount,
+                        image_data: lastDetectionData.imageData
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert(`Voting ${action === 'approve' ? 'approved' : 'rejected'}`);
+                    document.getElementById('fraudAlert').style.display = 'none';
+                    document.getElementById('actionButtons').style.display = 'none';
+
+                    if (typeof updateFraudCases === 'function') {
+                        await updateFraudCases();
+                    }
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/logout');
                 window.location.href = '/';
-                return;
+            } catch (error) {
+                window.location.href = '/';
             }
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch sessions');
-            }
-
-            const sessions = await response.json();
-
-            const table = document.getElementById('sessionsTable');
-            table.innerHTML = '';
-
-            if (Object.keys(sessions).length === 0) {
-                table.innerHTML = `
-                    <tr>
-                        <td colspan="3" class="text-center text-muted">
-                            No active sessions
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            for (const [nic, data] of Object.entries(sessions)) {
-                const duration = Math.round((Date.now()/1000 - data.start_time) / 60);
-                table.innerHTML += `
-                    <tr>
-                        <td><code>${nic}</code></td>
-                        <td>
-                            <span class="badge bg-success">Active</span>
-                            <br>
-                            <small class="text-muted">${data.person_count} persons</small>
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="focusVoter('${nic}')">
-                                <i class="fas fa-eye"></i> View
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }
-        } catch (error) {
-            console.error('Error updating sessions:', error);
         }
-    }
 
-    // Focus on specific voter
-    async function focusVoter(nic) {
-        try {
-            const response = await fetch('/api/start_monitoring', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ voter_nic: nic })
-            });
-
-            if (response.ok) {
-                await updateMonitoringData();
-            }
-        } catch (error) {
-            console.error('Error focusing voter:', error);
-        }
-    }
-
-    // Resolve fraud case
-    async function resolveFraud(action) {
-        if (!currentVoter) return;
-
-        try {
-            const response = await fetch('/api/resolve_fraud', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    voter_nic: currentVoter.nic,
-                    action: action
-                })
-            });
-
-            const result = await response.json();
-            if (result.success) {
-                alert(`Voting ${action === 'approve' ? 'approved' : 'rejected'}`);
-                document.getElementById('fraudAlert').style.display = 'none';
-                document.getElementById('actionButtons').style.display = 'none';
-            }
-        } catch (error) {
-            alert('Error: ' + error.message);
-        }
-    }
-
-    // Logout
-    async function logout() {
-        try {
-            await fetch('/api/logout');
-            window.location.href = '/';
-        } catch (error) {
-            window.location.href = '/';
-        }
-    }
-
-    // Initialize on load
-    document.addEventListener('DOMContentLoaded', initializeDashboard);
+        document.addEventListener('DOMContentLoaded', initializeDashboard);
     </script>
 </body>
 </html>

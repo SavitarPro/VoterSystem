@@ -95,7 +95,6 @@
     </style>
 </head>
 <body>
-    <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
         <div class="container">
             <a class="navbar-brand" href="/">
@@ -104,23 +103,20 @@
         </div>
     </nav>
 
-    <!-- Main Content -->
     <main class="container my-5">
         <div class="row justify-content-center">
             <div class="col-md-10 col-lg-8 col-xl-6">
                 <div class="card confirmation-card">
                     <div class="card-body text-center p-4 p-md-5">
 
-                        <!-- Success Icon -->
                         <div class="mb-4">
                             <i class="fas fa-check-circle success-icon"></i>
                         </div>
 
-                        <!-- Confirmation Message -->
                         <h2 class="card-title text-success mb-3">Vote Successfully Cast!</h2>
                         <p class="text-muted mb-4">Your vote has been securely recorded on the blockchain.</p>
-
-                        <!-- Vote Details -->
+                        <p class="text-muted mb-4">ඔබගේ ඡන්දය ආරක්ෂිතව blockchain හි සටහන් කර ඇත.</p>
+                        <p class="text-muted mb-4">உங்கள் வாக்கு பிளாக்செயினில் பாதுகாப்பாகப் பதிவு செய்யப்பட்டுள்ளது.</p>
                         <div class="vote-details mb-4">
                             <div class="row">
                                 <div class="col-md-12 detail-item">
@@ -136,7 +132,6 @@
                             </div>
                         </div>
 
-                        <!-- Blockchain Verification -->
                         <div class="blockchain-info mb-4">
                             <span class="blockchain-badge">
                                 <i class="fas fa-link me-1"></i> Blockchain Secured
@@ -153,7 +148,6 @@
                             </small>
                         </div>
 
-                        <!-- Vote Statistics -->
                         <div class="vote-stats mb-4 p-3 bg-light rounded">
                             <h6 class="mb-3"><i class="fas fa-chart-pie me-2"></i>Voting Statistics</h6>
                             <div class="row">
@@ -172,24 +166,29 @@
                             </div>
                         </div>
 
-                        <!-- Actions -->
                         <div class="actions mt-4">
                             <a href="/" class="btn btn-primary me-2 mb-2">
                                 <i class="fas fa-chart-bar me-1"></i> View Dashboard
                             </a>
                         </div>
 
-                        <!-- Security Notice -->
                         <div class="security-notice mt-4 pt-3 border-top">
                             <small class="text-muted">
                                 <i class="fas fa-shield-alt me-1"></i>
                                 Your vote is anonymous and cannot be traced back to you.
                             </small>
+                            <small class="text-muted">
+                                <i class="fas fa-shield-alt me-1"></i>
+                                ඔබගේ ඡන්දය නිර්නාමික වන අතර එය නැවත සොයාගත නොහැක.
+                            </small>
+                            <small class="text-muted">
+                                <i class="fas fa-shield-alt me-1"></i>
+                                உங்கள் வாக்கு அநாமதேயமானது மற்றும் அதை மீண்டும் கண்டுபிடிக்க முடியாது.
+                            </small>
                         </div>
                     </div>
                 </div>
 
-                <!-- Footer Information -->
                 <div class="text-center mt-4">
                     <small class="text-muted">
                         Need help? Contact election officials at
@@ -203,7 +202,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Copy hash to clipboard functionality
             const copyButton = document.querySelector('.btn-copy');
             if (copyButton) {
                 copyButton.addEventListener('click', function() {
@@ -225,7 +223,6 @@
                 });
             }
 
-            // Auto-redirect after 30 seconds
             setTimeout(() => {
                 if (window.location.pathname.includes('/vote/confirmation')) {
                     window.location.href = '/vote';

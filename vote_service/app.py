@@ -3,7 +3,7 @@ import os
 import sys
 from datetime import timedelta
 
-# Add the current directory to Python path
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from config import config
@@ -13,13 +13,13 @@ from routes import vote_bp
 def create_app():
     app = Flask(__name__)
 
-    # Configure app
+
     app.config['SECRET_KEY'] = 'your-secret-key-here'
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
     app.config['UPLOAD_FOLDER'] = config.UPLOAD_FOLDER
     app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
 
-    # Register blueprints
+
     app.register_blueprint(vote_bp)
 
     @app.errorhandler(404)

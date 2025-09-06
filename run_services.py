@@ -1,11 +1,13 @@
+
 import subprocess
 import time
 import sys
 import os
 
+'''This Service Use only for check Running Status of Other Services'''
 
 def run_service(service_name, port):
-    """Run a service in a separate process"""
+    
     try:
         print(f"Starting {service_name} service on port {port}...")
         cmd = [sys.executable, f"{service_name}_service/app.py", str(port)]
@@ -19,7 +21,7 @@ def main():
     processes = []
 
     try:
-        # Start all services
+        
         processes.append(run_service("registration", 5001))
         processes.append(run_service("validity", 5002))
         processes.append(run_service("auth", 5003))
@@ -29,7 +31,7 @@ def main():
 
         print("All services started. Press Ctrl+C to stop.")
 
-        # Keep the script running
+        
         while True:
             time.sleep(1)
 

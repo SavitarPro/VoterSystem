@@ -1,0 +1,47 @@
+---
+config:
+  theme: 'base'
+  themeVariables:
+    primaryColor: '#EDE3CE'
+    primaryTextColor: '#000000'
+    primaryBorderColor: '#000000'
+    lineColor: '#000000'
+    secondaryColor: '#E3E1E1'
+    tertiaryColor: '#FFFFFF'
+---
+sequenceDiagram
+    title Voting Service Sequence Diagram
+    participant V as Voter Client
+    participant VS as Vote Service
+    participant FR as FingerprintRecognizer
+    participant DB_R as Registration DB
+    participant DB_A as Auth DB
+    participant BC as Blockchain
+    participant DB_V as Vote DB
+    participant FS as Fraud Service
+
+    V->>VS: Process fingerprint (image)
+    VS->>FR: Recognize fingerprint(image)
+    FR-->>VS: Return (nic, confidence)
+
+    VS->>DB_R: Get voter info(nic)
+    VS->>DB_A: Check voter authentication status(nic)
+    VS->>BC: Has voted(nic)?
+
+    alt Voter approved & not voted
+        VS->>FS: Start monitoring (nic)
+        VS->>VS: Store nic in session
+        VS-->>V: Return auth success + redirect
+    else Voter already voted
+        VS-->>V: Return error: Already voted
+    else Voter not approved
+        VS-->>V: Return error: Not approved
+    end
+
+    V->>VS: Cast (party code)
+    VS->>BC: Add vote(voter nic)
+    BC->>BC: Create new block/hash
+    BC-->>VS: Success
+    VS->>DB_V: Store anonymous vote(party code)
+    VS->>FS: Stop monitoring (nic)
+    VS-->>V: Return vote confirmation

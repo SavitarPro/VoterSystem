@@ -7,7 +7,7 @@ from config import config
 
 auth_bp = Blueprint('auth', __name__)
 
-# Initialize components
+
 face_recognizer = FaceRecognizer(config.FACE_MODEL_PATH)
 db_manager = DatabaseManager()
 
@@ -29,11 +29,11 @@ def process_frame():
         image_data = data['image'].split(',')[1]
         officer_id = data.get('officer_id', 'OFFICER_001')
 
-        # Decode base64 image
+
         nparr = np.frombuffer(base64.b64decode(image_data), np.uint8)
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-        # Recognize face
+
         nic, confidence = face_recognizer.recognize_face(frame)
 
         response = {
@@ -43,7 +43,7 @@ def process_frame():
         }
 
         if nic:
-            # Get voter info
+
             voter_info = db_manager.get_voter_info(nic)
             if voter_info:
                 response.update({
@@ -68,7 +68,7 @@ def confirm_authentication():
         officer_id = data['officer_id']
         confidence = data['confidence']
 
-        # Log authentication
+
         db_manager.log_authentication(unique_id, nic, full_name, officer_id, confidence, 'APPROVED')
 
         return jsonify({

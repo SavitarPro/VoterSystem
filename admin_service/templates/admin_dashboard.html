@@ -45,7 +45,6 @@
 <body>
     <div class="container-fluid p-0">
         <div class="row g-0">
-            <!-- Sidebar -->
             <div class="col-lg-2 sidebar p-0">
                 <div class="p-4">
                     <h5 class="text-white mb-4 text-center">
@@ -82,19 +81,20 @@
                 </div>
             </div>
 
-            <!-- Main Content -->
             <div class="col-lg-10 p-4" style="background: #f8f9fa;">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 class="text-dark">Election Results Dashboard</h2>
                     <div>
                         <span class="text-muted me-3" id="lastUpdated"></span>
-                        <button class="btn btn-sm btn-outline-primary" onclick="refreshData()">
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="refreshData()">
                             <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="generatePDF()">
+                            <i class="fas fa-file-pdf"></i> Generate PDF Report
                         </button>
                     </div>
                 </div>
 
-                <!-- Statistics Cards -->
                 <div class="row mb-4" id="stats">
                     <div class="col-xl-3 col-md-6 mb-3">
                         <div class="card stat-card bg-primary text-white">
@@ -134,7 +134,6 @@
                     </div>
                 </div>
 
-                <!-- Results Section -->
                 <div class="row mb-4" id="results">
                     <div class="col-lg-8 mb-4">
                         <div class="chart-container">
@@ -175,7 +174,6 @@
                     </div>
                 </div>
 
-                <!-- Timeline Section -->
                 <div class="row mb-4">
                     <div class="col-12">
                         <div class="chart-container">
@@ -185,7 +183,6 @@
                     </div>
                 </div>
 
-                <!-- Recent Activity Section -->
                 <div class="row" id="activity">
                     <div class="col-12">
                         <div class="chart-container">
@@ -241,17 +238,14 @@
     </div>
 
     <script>
-        // Update last updated time
         function updateLastUpdated() {
             document.getElementById('lastUpdated').textContent =
                 'Last updated: ' + new Date().toLocaleString();
         }
         updateLastUpdated();
 
-        // Initialize charts
         async function initializeCharts() {
             try {
-                // Results Chart
                 const resultsResponse = await fetch('/api/results');
                 if (!resultsResponse.ok) throw new Error('Failed to fetch results');
 
@@ -289,7 +283,6 @@
                     });
                 }
 
-                // Timeline Chart
                 const timelineResponse = await fetch('/api/timeline');
                 if (timelineResponse.ok) {
                     const timelineData = await timelineResponse.json();
@@ -330,12 +323,37 @@
             }
         }
 
-        // Refresh data
         function refreshData() {
             window.location.reload();
         }
 
-        // Logout function
+        async function generatePDF() {
+            try {
+                const response = await fetch('/generate_report');
+                if (response.ok) {
+                    const blob = await response.blob();
+
+                    const url = window.URL.createObjectURL(blob);
+
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'election_report.pdf';
+
+                    document.body.appendChild(a);
+                    a.click();
+
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('Failed to generate PDF report');
+                }
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                alert('Error generating PDF report: ' + error.message);
+            }
+        }
+
         async function logout() {
             try {
                 const response = await fetch('/logout');
@@ -348,10 +366,8 @@
             }
         }
 
-        // Auto-refresh every 2 minutes
         setInterval(refreshData, 120000);
 
-        // Initialize charts on page load
         document.addEventListener('DOMContentLoaded', initializeCharts);
     </script>
 </body>

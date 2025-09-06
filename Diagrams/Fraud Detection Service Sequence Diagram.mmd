@@ -1,0 +1,49 @@
+---
+config:
+  theme: 'base'
+  themeVariables:
+    primaryColor: '#EDE3CE'
+    primaryTextColor: '#000000'
+    primaryBorderColor: '#000000'
+    lineColor: '#000000'
+    secondaryColor: '#E3E1E1'
+    tertiaryColor: '#FFFFFF'
+---
+sequenceDiagram
+    title Fraud Detection Service Sequence Diagram
+    participant VS as Vote Service
+    participant FS as Fraud Service
+    participant CM as CameraManager
+    participant PD as PersonDetector
+    participant DB_F as Fraud DB
+    participant O as Fraud Officer
+
+    VS->>FS: Start monitoring (voter nic)
+    FS->>CM: Start camera(voter nic)
+    CM->>CM: Find available camera
+    CM->>CM: Initialize OpenCV capture
+    CM-->>FS: Camera started
+    FS-->>VS: Monitoring started
+
+    loop monitoring
+        CM->>CM: cap.read()
+        CM->>PD: Detect persons(frame)
+        PD->>PD: YOLO/CNN inference
+        PD-->>CM: Return (person count, processed frame)
+        CM->>CM: Store detection results
+
+        alt person_count >= 2 (fraud detected)
+            CM->>DB_F: Log fraud attempt(voter nic, count)
+            FS->>FS: Add to fraud cases
+        end
+    end
+
+    O->>FS: Fraud cases
+    FS->>DB_F: Get pending fraud cases
+    DB_F-->>FS: Return cases
+    FS-->>O: Display fraud cases
+
+    O->>FS: Resolve fraud (action)
+    FS->>DB_F: update fraud attempt status
+    FS->>CM: Stop camera(voter nic)
+    FS-->>O: Resolution complete

@@ -3,6 +3,7 @@ import numpy as np
 import pickle
 import json
 import hashlib
+import tensorflow as tf
 import os
 from datetime import datetime
 import psycopg2
@@ -13,84 +14,69 @@ class FingerprintRecognizer:
     def __init__(self, model_path):
         self.model = None
         self.label_encoder = None
+        self.input_shape = None
         self.load_model(model_path)
 
     def load_model(self, model_path):
-        """Load the trained fingerprint model"""
+        
         try:
-            with open(model_path, 'rb') as f:
-                model_data = pickle.load(f)
-            self.model = model_data['model']
-            self.label_encoder = model_data['label_encoder']
-            print("Fingerprint model loaded successfully!")
+            
+            self.model = tf.keras.models.load_model(model_path.replace('.pkl', '.h5'))
+
+            
+            metadata_path = model_path.replace('.pkl', '_metadata.pkl')
+            with open(metadata_path, 'rb') as f:
+                metadata = pickle.load(f)
+
+            self.label_encoder = metadata['label_encoder']
+            self.input_shape = metadata['input_shape']
+            print("Fingerprint CNN model loaded successfully!")
         except Exception as e:
             print(f"Error loading fingerprint model: {e}")
 
-    def extract_fingerprint_features(self, fingerprint_image):
-        """EXACT SAME METHOD AS TRAINING - MUST MATCH EXACTLY"""
-        # Resize to consistent size
-        fingerprint_resized = cv2.resize(fingerprint_image, (100, 100))
+    def extract_fingerprint_features_cnn(self, fingerprint_image):
+        
+        
+        fingerprint_resized = cv2.resize(fingerprint_image, (self.input_shape[0], self.input_shape[1]))
 
-        # Convert to grayscale if needed
+        
         if len(fingerprint_resized.shape) == 3:
             fingerprint_gray = cv2.cvtColor(fingerprint_resized, cv2.COLOR_BGR2GRAY)
         else:
             fingerprint_gray = fingerprint_resized
 
-        # Apply histogram equalization for better contrast
+        
         fingerprint_eq = cv2.equalizeHist(fingerprint_gray)
 
-        # Apply Gaussian blur to reduce noise
-        fingerprint_blur = cv2.GaussianBlur(fingerprint_eq, (5, 5), 0)
+        
+        fingerprint_normalized = fingerprint_eq / 255.0
 
-        # Apply adaptive threshold to enhance ridges
-        fingerprint_thresh = cv2.adaptiveThreshold(
-            fingerprint_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY, 11, 2
-        )
+        
+        fingerprint_normalized = np.expand_dims(fingerprint_normalized, axis=-1)
 
-        # Extract features using ORB (Oriented FAST and Rotated BRIEF)
-        orb = cv2.ORB_create(nfeatures=100)
-        keypoints, descriptors = orb.detectAndCompute(fingerprint_thresh, None)
-
-        # If descriptors exist, use them as features
-        if descriptors is not None:
-            # Flatten descriptors and pad if necessary
-            if len(descriptors) > 0:
-                # Use the first descriptor
-                features = descriptors[0].flatten()
-                if len(features) < 100:
-                    features = np.pad(features, (0, 100 - len(features)), 'constant')
-                return features[:100]  # Return first 100 features
-
-        # Fallback: use the processed image as features
-        return fingerprint_thresh.flatten()[:100]
+        return fingerprint_normalized
 
     def recognize_fingerprint(self, image):
-        """Recognize fingerprint from image"""
+        
         if self.model is None:
             return None, 0.0
 
         try:
-            # Extract features using the SAME method as training
-            features = self.extract_fingerprint_features(image)
+            
+            processed_image = self.extract_fingerprint_features_cnn(image)
 
-            # Ensure we have exactly 100 features
-            if len(features) != 100:
-                features = features[:100] if len(features) > 100 else np.pad(features, (0, 100 - len(features)),
-                                                                             'constant')
+            
+            processed_image = np.expand_dims(processed_image, axis=0)
 
-            # Reshape for prediction
-            features = features.reshape(1, -1)
+            
+            predictions = self.model.predict(processed_image, verbose=0)
+            confidence = np.max(predictions)
+            predicted_class = np.argmax(predictions, axis=1)
 
-            # Predict
-            prediction = self.model.predict(features)
-            confidence = np.max(self.model.predict_proba(features))
-
-            if confidence < 0.6:
+            if confidence < 0.6:  
                 return None, confidence
 
-            predicted_nic = self.label_encoder.inverse_transform(prediction)[0]
+            predicted_nic = self.label_encoder.inverse_transform(predicted_class)[0]
             return predicted_nic, confidence
 
         except Exception as e:
@@ -104,16 +90,16 @@ class Blockchain:
         self.chain = self.load_chain()
 
     def load_chain(self):
-        """Load blockchain from file"""
+        
         try:
             with open(self.blockchain_file, 'r') as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
-            # Initialize new blockchain
+            
             return [self.create_genesis_block()]
 
     def create_genesis_block(self):
-        """Create the first block in the chain"""
+        
         genesis_block = {
             'index': 0,
             'timestamp': str(datetime.now()),
@@ -125,27 +111,27 @@ class Blockchain:
         return genesis_block
 
     def calculate_hash(self, index, previous_hash, votes, timestamp):
-        """Calculate SHA-256 hash of block"""
+        
         block_string = f"{index}{previous_hash}{json.dumps(votes)}{timestamp}"
         return hashlib.sha256(block_string.encode()).hexdigest()
 
     def add_vote(self, voter_nic):
-        """Add a vote to the blockchain (only stores that someone voted, not who they voted for)"""
-        # Check if voter has already voted
+        
+        
         for block in self.chain:
             for vote in block['votes']:
                 if vote['voter_nic'] == voter_nic:
                     return False
 
-        # Create new vote (only store NIC and timestamp for anonymity)
+        
         vote_data = {
             'voter_nic': voter_nic,
             'timestamp': str(datetime.now()),
             'vote_id': f"vote_{len(self.chain)}_{voter_nic}"
         }
 
-        # Add to current block or create new block
-        if len(self.chain[-1]['votes']) >= 10:  # Create new block after 10 votes
+        
+        if len(self.chain[-1]['votes']) >= 10:  
             new_block = {
                 'index': len(self.chain),
                 'timestamp': str(datetime.now()),
@@ -156,7 +142,7 @@ class Blockchain:
             self.chain.append(new_block)
         else:
             self.chain[-1]['votes'].append(vote_data)
-            # Recalculate hash for current block
+            
             self.chain[-1]['hash'] = self.calculate_hash(
                 self.chain[-1]['index'],
                 self.chain[-1]['previous_hash'],
@@ -168,20 +154,20 @@ class Blockchain:
         return True
 
     def save_chain(self, chain):
-        """Save blockchain to file"""
+        
         os.makedirs(os.path.dirname(self.blockchain_file), exist_ok=True)
         with open(self.blockchain_file, 'w') as f:
             json.dump(chain, f, indent=2)
 
     def get_vote_count(self):
-        """Get total vote count"""
+        
         total = 0
         for block in self.chain:
             total += len(block['votes'])
         return total
 
     def has_voted(self, voter_nic):
-        """Check if voter has already voted"""
+        
         for block in self.chain:
             for vote in block['votes']:
                 if vote['voter_nic'] == voter_nic:
@@ -193,20 +179,20 @@ class VoteManager:
     def __init__(self):
         self.registration_pool = config.registration_pool
         self.vote_pool = config.vote_pool
-        self.voter_auth_pool = config.voter_auth_pool  # New connection pool
+        self.voter_auth_pool = config.voter_auth_pool  
         self.blockchain = Blockchain(config.BLOCKCHAIN_FILE)
         self.init_databases()
 
     def init_databases(self):
-        """Initialize vote database tables"""
+        
         self.init_vote_db()
 
     def init_vote_db(self):
-        """Initialize vote database tables"""
+        
         conn = self.vote_pool.getconn()
         try:
             with conn.cursor() as cursor:
-                # Vote sessions table
+                
                 cursor.execute('''
                                CREATE TABLE IF NOT EXISTS vote_sessions
                                (
@@ -228,7 +214,7 @@ class VoteManager:
                                    )
                                ''')
 
-                # Anonymous vote storage table (stores party votes without voter linkage)
+                
                 cursor.execute('''
                                CREATE TABLE IF NOT EXISTS anonymous_votes
                                (
@@ -255,7 +241,7 @@ class VoteManager:
             self.vote_pool.putconn(conn)
 
     def get_voter_info(self, nic):
-        """Get voter information"""
+        
         conn = self.registration_pool.getconn()
         try:
             with conn.cursor() as cursor:
@@ -278,7 +264,7 @@ class VoteManager:
         return None
 
     def check_voter_auth_status(self, nic):
-        """Check if voter has APPROVED status in voter_auth_db"""
+        
         if not self.voter_auth_pool:
             return False
 
@@ -302,39 +288,39 @@ class VoteManager:
             self.voter_auth_pool.putconn(conn)
 
     def cast_vote(self, voter_nic, party_code):
-        """Cast a vote using blockchain and store party vote anonymously"""
+        
         if self.blockchain.has_voted(voter_nic):
             return False, "Voter has already voted"
 
-        # Check if voter is approved in auth database
+        
         if not self.check_voter_auth_status(voter_nic):
             return False, "Voter not approved for voting"
 
-        # Add to blockchain (proves voter participated)
+        
         blockchain_success = self.blockchain.add_vote(voter_nic)
         if not blockchain_success:
             return False, "Failed to record vote in blockchain"
 
-        # Store anonymous vote (what was voted for, not who voted)
+        
         conn = self.vote_pool.getconn()
         try:
             with conn.cursor() as cursor:
-                # Get the latest block hash for reference
+                
                 latest_block_hash = self.blockchain.chain[-1]['hash']
 
-                # Insert into anonymous_votes table
+                
                 cursor.execute('''
                                INSERT INTO anonymous_votes (party_code, block_hash)
                                VALUES (%s, %s) RETURNING vote_id
                                ''', (party_code, latest_block_hash))
 
-                # FIXED: Update vote_sessions without ON CONFLICT
-                # First check if session exists
+                
+                
                 cursor.execute('SELECT session_id FROM vote_sessions WHERE voter_nic = %s', (voter_nic,))
                 existing_session = cursor.fetchone()
 
                 if existing_session:
-                    # Update existing session
+                    
                     cursor.execute('''
                                    UPDATE vote_sessions
                                    SET end_time = CURRENT_TIMESTAMP,
@@ -342,7 +328,7 @@ class VoteManager:
                                    WHERE voter_nic = %s
                                    ''', (voter_nic,))
                 else:
-                    # Insert new session
+                    
                     cursor.execute('''
                                    INSERT INTO vote_sessions (voter_nic, end_time, status)
                                    VALUES (%s, CURRENT_TIMESTAMP, 'completed')
@@ -358,7 +344,7 @@ class VoteManager:
             self.vote_pool.putconn(conn)
 
     def get_vote_stats(self):
-        """Get voting statistics - only total votes for anonymity"""
+        
         total_votes = self.blockchain.get_vote_count()
 
         return {
@@ -366,5 +352,5 @@ class VoteManager:
         }
 
     def validate_officer_id(self, officer_id):
-        """Validate if officer ID is authorized for override"""
+        
         return officer_id in config.AUTHORIZED_OFFICER_IDS

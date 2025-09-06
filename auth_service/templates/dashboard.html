@@ -49,7 +49,6 @@
 
 {% block scripts %}
 <script>
-    // Fetch and display statistics
     fetch('/api/auth_stats')
         .then(response => response.json())
         .then(data => {

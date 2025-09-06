@@ -3,7 +3,7 @@ from datetime import timedelta
 import os
 import sys
 
-# Add the current directory to the path for imports
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
@@ -14,15 +14,15 @@ from routes import fraud_bp
 def create_fraud_app():
     app = Flask(__name__, template_folder='templates')
 
-    # Configuration
+    
     app.config['SECRET_KEY'] = fraud_config.SECRET_KEY
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
 
-    # Register blueprint
+    
     app.register_blueprint(fraud_bp, url_prefix='/')
 
 
-    # Error handlers
+    
     @app.errorhandler(404)
     def not_found(error):
         return {'error': 'Endpoint not found'}, 404

@@ -2,33 +2,42 @@ import cv2
 import numpy as np
 import pickle
 from datetime import datetime
-import psycopg2
-from psycopg2 import pool
 from config import config
+from tensorflow.keras.models import load_model
 
 
 class FaceRecognizer:
     def __init__(self, model_path):
         self.model = None
-        self.label_encoder = None
+        self.label_to_nic = None
+        self.nic_to_label = None
+        self.unique_nics = None
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
         )
         self.load_model(model_path)
 
     def load_model(self, model_path):
-        """Load the trained model from file"""
+        
         try:
-            with open(model_path, 'rb') as f:
-                model_data = pickle.load(f)
-            self.model = model_data['model']
-            self.label_encoder = model_data['label_encoder']
-            print("Model loaded successfully!")
+            
+            self.model = load_model(model_path)
+
+            
+            metadata_path = model_path.replace('_model.h5', '_metadata.pkl')
+            with open(metadata_path, 'rb') as f:
+                metadata = pickle.load(f)
+                self.label_to_nic = metadata['label_to_nic']
+                self.nic_to_label = metadata['nic_to_label']
+                self.unique_nics = metadata['unique_nics']
+
+            print(f"Model loaded successfully! Recognizes {len(self.unique_nics)} people: {self.unique_nics}")
         except Exception as e:
             print(f"Error loading model: {e}")
 
     def extract_face_embeddings(self, face_image):
-        """Extract embeddings from face image"""
+        
+        
         face_resized = cv2.resize(face_image, (100, 100))
 
         if len(face_resized.shape) == 3:
@@ -36,12 +45,17 @@ class FaceRecognizer:
         else:
             face_gray = face_resized
 
-        face_eq = cv2.equalizeHist(face_gray)
-        embedding = face_eq.flatten().astype(np.float32) / 255.0
-        return embedding
+        
+        face_normalized = face_gray / 255.0
+
+        
+        face_normalized = np.expand_dims(face_normalized, axis=-1)  
+        face_normalized = np.expand_dims(face_normalized, axis=0)  
+
+        return face_normalized
 
     def detect_faces(self, image):
-        """Detect faces using Haar cascade"""
+        
         if len(image.shape) == 3:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
@@ -53,8 +67,8 @@ class FaceRecognizer:
         return faces
 
     def recognize_face(self, frame):
-        """Recognize face in frame"""
-        if self.model is None:
+        
+        if self.model is None or self.label_to_nic is None:
             return None, 0.0
 
         faces = self.detect_faces(frame)
@@ -65,21 +79,27 @@ class FaceRecognizer:
         face_roi = frame[y:y + h, x:x + w]
 
         try:
+            
             embedding = self.extract_face_embeddings(face_roi)
-            embedding = embedding.reshape(1, -1)
 
-            prediction = self.model.predict(embedding)
-            confidence = np.max(self.model.predict_proba(embedding))
+            
+            predictions = self.model.predict(embedding, verbose=0)
+            confidence = np.max(predictions)
+            predicted_label = np.argmax(predictions, axis=1)[0]
 
+            
+            predicted_nic = self.label_to_nic.get(predicted_label, str(predicted_label))
+
+            
             if confidence < 0.6:
                 return None, confidence
 
-            predicted_nic = self.label_encoder.inverse_transform(prediction)[0]
             return predicted_nic, confidence
 
         except Exception as e:
             print(f"Recognition error: {e}")
             return None, 0.0
+
 
 
 class DatabaseManager:
@@ -89,16 +109,16 @@ class DatabaseManager:
         self.init_databases()
 
     def init_databases(self):
-        """Initialize database tables if they don't exist"""
+        
         self.init_registration_db()
         self.init_auth_db()
 
     def init_registration_db(self):
-        """Initialize registration database tables"""
+        
         conn = self.registration_pool.getconn()
         try:
             with conn.cursor() as cursor:
-                # Voters table for registration database
+                
                 cursor.execute('''
                                CREATE TABLE IF NOT EXISTS voters
                                (
@@ -119,7 +139,7 @@ class DatabaseManager:
                                (
                                    100
                                ) NOT NULL,
-                                   
+
                                    address TEXT NOT NULL,
                                    electoral_division VARCHAR
                                (
@@ -127,14 +147,14 @@ class DatabaseManager:
                                ) NOT NULL,
                                    face_image_path VARCHAR
                                (
-                                    255
+                                   255
                                ) NOT NULL,
                                    fingerprint_path VARCHAR
                                (
                                    255
                                ) NOT NULL,
                                    registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                                  )
+                                   )
                                ''')
                 conn.commit()
                 print("Registration database initialized successfully")
@@ -144,11 +164,11 @@ class DatabaseManager:
             self.registration_pool.putconn(conn)
 
     def init_auth_db(self):
-        """Initialize authentication database tables"""
+        
         conn = self.auth_pool.getconn()
         try:
             with conn.cursor() as cursor:
-                # Authentications table for auth database
+                
                 cursor.execute('''
                                CREATE TABLE IF NOT EXISTS authentications
                                (
@@ -174,7 +194,10 @@ class DatabaseManager:
                                    255
                                ) NOT NULL,
                                    confidence REAL NOT NULL,
-                                   status VARCHAR(20) NOT NULL,
+                                   status VARCHAR
+                               (
+                                   20
+                               ) NOT NULL,
                                    auth_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                                    )
                                ''')
@@ -186,11 +209,11 @@ class DatabaseManager:
             self.auth_pool.putconn(conn)
 
     def get_voter_info(self, nic):
-        """Get voter information from registration DB"""
+        
         conn = self.registration_pool.getconn()
         try:
             with conn.cursor() as cursor:
-                # Simple query without status check since there's no status column
+                
                 query = '''
                         SELECT unique_id, \
                                nic, \
@@ -225,7 +248,7 @@ class DatabaseManager:
         return None
 
     def log_authentication(self, unique_id, nic, full_name, officer_id, confidence, status):
-        """Log authentication attempt"""
+        
         conn = self.auth_pool.getconn()
         try:
             with conn.cursor() as cursor:
@@ -244,11 +267,11 @@ class DatabaseManager:
             self.auth_pool.putconn(conn)
 
     def get_auth_stats(self):
-        """Get authentication statistics"""
+        
         conn = self.auth_pool.getconn()
         try:
             with conn.cursor() as cursor:
-                # Today's authentications
+                
                 cursor.execute('''
                                SELECT COUNT(*)
                                FROM authentications
@@ -256,7 +279,7 @@ class DatabaseManager:
                                ''')
                 today_count = cursor.fetchone()[0]
 
-                # Total authentications
+                
                 cursor.execute('SELECT COUNT(*) FROM authentications')
                 total_count = cursor.fetchone()[0]
 

@@ -1,0 +1,34 @@
+---
+config:
+  theme: 'base'
+  themeVariables:
+    primaryColor: '#EDE3CE'
+    primaryTextColor: '#000000'
+    primaryBorderColor: '#000000'
+    lineColor: '#000000'
+    secondaryColor: '#E3E1E1'
+    tertiaryColor: '#FFFFFF'
+---
+sequenceDiagram
+    title Authentication Service Sequence Diagram
+    participant C as Camera Client
+    participant A as Auth Service
+    participant FR as FaceRecognizer
+    participant DB_R as Registration DB
+    participant DB_A as Auth DB
+
+    C->>A: Process frame (image data)
+    A->>A: Decode base64 image
+    A->>FR: Recognize face(frame)
+    FR->>FR: Detect faces, extract embeddings
+    FR->>FR: Run CNN model inference
+    FR-->>A: Return (nic, confidence)
+
+    alt Face recognized (high confidence)
+        A->>DB_R: Get voter info(nic)
+        DB_R-->>A: Voter details
+        A->>DB_A: Log authentication(nic, APPROVED)
+        A-->>C: Return success + voter info
+    else Face not recognized
+        A-->>C: Return success (no match)
+    end

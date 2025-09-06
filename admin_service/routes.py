@@ -1,36 +1,36 @@
 from flask import Blueprint, render_template, jsonify, session, request
-import psycopg2
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.units import inch
+import io
 from datetime import datetime
 
-# Import config directly (no relative import)
 try:
-    from config import admin_config
+    from config import config
 except ImportError:
-    # Fallback for direct execution
     import sys
     import os
 
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from config import admin_config
+    from config import config
 
-# Create admin blueprint
 admin_bp = Blueprint('admin', __name__)
 
 
 class AdminManager:
     def __init__(self):
-        self.vote_pool = admin_config.vote_pool
-        self.registration_pool = admin_config.registration_pool
+        self.vote_pool = config.vote_pool
+        self.registration_pool = config.registration_pool
 
     def get_election_results(self):
-        """Get comprehensive election results from anonymous_votes table"""
         if not self.vote_pool:
             return None
 
         conn = self.vote_pool.getconn()
         try:
             with conn.cursor() as cursor:
-                # Get total votes per party
                 cursor.execute('''
                                SELECT party_code, COUNT(*) as vote_count
                                FROM anonymous_votes
@@ -39,12 +39,10 @@ class AdminManager:
                                ''')
                 party_results = cursor.fetchall()
 
-                # Get total votes
                 cursor.execute('SELECT COUNT(*) FROM anonymous_votes')
                 total_votes_result = cursor.fetchone()
                 total_votes = total_votes_result[0] if total_votes_result else 0
 
-                # Get voting timeline (votes per hour)
                 cursor.execute('''
                                SELECT DATE_TRUNC('hour', vote_time) as hour, 
                            COUNT(*) as votes_per_hour
@@ -71,7 +69,6 @@ class AdminManager:
             self.vote_pool.putconn(conn)
 
     def get_voter_turnout(self):
-        """Get voter turnout statistics"""
         if not self.registration_pool or not self.vote_pool:
             return None
 
@@ -80,13 +77,11 @@ class AdminManager:
 
         try:
             with conn_reg.cursor() as cursor:
-                # Get total registered voters
                 cursor.execute('SELECT COUNT(*) FROM voters')
                 result = cursor.fetchone()
                 total_registered = result[0] if result else 0
 
             with conn_vote.cursor() as cursor:
-                # Get total votes cast (from vote_sessions)
                 cursor.execute("SELECT COUNT(*) FROM vote_sessions WHERE status = 'completed'")
                 result = cursor.fetchone()
                 votes_cast = result[0] if result else 0
@@ -107,7 +102,6 @@ class AdminManager:
             self.vote_pool.putconn(conn_vote)
 
     def get_recent_activity(self, limit=10):
-        """Get recent voting activity"""
         if not self.vote_pool:
             return None
 
@@ -129,14 +123,12 @@ class AdminManager:
             self.vote_pool.putconn(conn)
 
     def get_system_stats(self):
-        """Get system statistics"""
         if not self.vote_pool:
             return None
 
         conn = self.vote_pool.getconn()
         try:
             with conn.cursor() as cursor:
-                # Get today's votes
                 cursor.execute('''
                                SELECT COUNT(*)
                                FROM anonymous_votes
@@ -145,7 +137,6 @@ class AdminManager:
                 result = cursor.fetchone()
                 today_votes = result[0] if result else 0
 
-                # Get active sessions
                 cursor.execute("SELECT COUNT(*) FROM vote_sessions WHERE status = 'active'")
                 result = cursor.fetchone()
                 active_sessions = result[0] if result else 0
@@ -162,13 +153,13 @@ class AdminManager:
             self.vote_pool.putconn(conn)
 
 
-# Initialize admin manager
+
 admin_manager = AdminManager()
 
 
 @admin_bp.route('/')
 def admin_dashboard():
-    """Admin dashboard main page"""
+
     if not session.get('admin_logged_in'):
         return render_template('admin_login.html')
 
@@ -182,17 +173,17 @@ def admin_dashboard():
                            turnout=turnout,
                            recent_activity=recent_activity,
                            system_stats=system_stats,
-                           parties=admin_config.PARTIES)
+                           parties=config.PARTIES)
 
 
 @admin_bp.route('/login', methods=['POST'])
 def admin_login():
-    """Admin login endpoint"""
+
     username = request.form.get('username')
     password = request.form.get('password')
 
-    # Authentication
-    if username == admin_config.ADMIN_USERNAME and password == admin_config.ADMIN_PASSWORD:
+
+    if username == config.ADMIN_USERNAME and password == config.ADMIN_PASSWORD:
         session['admin_logged_in'] = True
         return jsonify({'success': True, 'redirect': '/'})
     else:
@@ -201,14 +192,14 @@ def admin_login():
 
 @admin_bp.route('/logout')
 def admin_logout():
-    """Admin logout"""
+
     session.pop('admin_logged_in', None)
     return jsonify({'success': True, 'redirect': '/'})
 
 
 @admin_bp.route('/api/results')
 def api_results():
-    """API endpoint for election results"""
+
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
 
@@ -218,7 +209,7 @@ def api_results():
 
     party_results = []
     for party_code, vote_count in results.get('party_results', []):
-        party_name = admin_config.PARTIES.get(party_code, {}).get('name', 'Unknown Party')
+        party_name = config.PARTIES.get(party_code, {}).get('name', 'Unknown Party')
         percentage = (vote_count / results['total_votes'] * 100) if results.get('total_votes', 0) > 0 else 0
         party_results.append({
             'party_code': party_code,
@@ -235,7 +226,7 @@ def api_results():
 
 @admin_bp.route('/api/timeline')
 def api_timeline():
-    """API endpoint for voting timeline"""
+
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
 
@@ -255,7 +246,7 @@ def api_timeline():
 
 @admin_bp.route('/api/activity')
 def api_activity():
-    """API endpoint for recent activity"""
+
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
 
@@ -277,7 +268,7 @@ def api_activity():
 
 @admin_bp.route('/api/stats')
 def api_stats():
-    """API endpoint for system statistics"""
+
     if not session.get('admin_logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
 
@@ -288,3 +279,114 @@ def api_stats():
         'voter_turnout': turnout,
         'system_stats': system_stats
     })
+
+
+@admin_bp.route('/generate_report')
+def generate_report():
+
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    try:
+
+        results = admin_manager.get_election_results() or {}
+        turnout = admin_manager.get_voter_turnout() or {}
+
+
+        buffer = io.BytesIO()
+
+
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+
+
+        elements = []
+
+
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Title'],
+            fontSize=20,
+            spaceAfter=30,
+            alignment=1
+        )
+
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceAfter=12
+        )
+
+
+        elements.append(Paragraph("Election Results Report", title_style))
+        elements.append(
+            Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+        elements.append(Spacer(1, 20))
+
+
+        elements.append(Paragraph("Summary Statistics", heading_style))
+
+        summary_data = [
+            ['Total Registered Voters', f"{turnout.get('total_registered', 0):,}"],
+            ['Total Votes Cast', f"{results.get('total_votes', 0):,}"],
+            ['Voter Turnout', f"{turnout.get('turnout_percentage', 0)}%"],
+            ['Did Not Participate', f"{(turnout.get('total_registered', 0) - results.get('total_votes', 0)):,}"],
+            ['Non-Participation Rate',
+             f"{((turnout.get('total_registered', 0) - results.get('total_votes', 0)) / turnout.get('total_registered', 0) * 100 if turnout.get('total_registered', 0) > 0 else 0):.2f}%"]
+        ]
+
+        summary_table = Table(summary_data, colWidths=[3 * inch, 2 * inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+
+        elements.append(summary_table)
+        elements.append(Spacer(1, 20))
+
+
+        elements.append(Paragraph("Party-wise Results", heading_style))
+
+        party_data = [['Party', 'Votes', 'Percentage']]
+
+        if results and results.get('party_results'):
+            for party_code, vote_count in results.get('party_results', []):
+                party_name = config.PARTIES.get(party_code, {}).get('name', 'Unknown Party')
+                percentage = (vote_count / results['total_votes'] * 100) if results.get('total_votes', 0) > 0 else 0
+                party_data.append([party_name, f"{vote_count:,}", f"{percentage:.2f}%"])
+
+        party_table = Table(party_data, colWidths=[3 * inch, 1.5 * inch, 1.5 * inch])
+        party_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+
+        elements.append(party_table)
+        elements.append(Spacer(1, 20))
+
+
+        doc.build(elements)
+
+
+        buffer.seek(0)
+        return buffer.getvalue(), 200, {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename=election_report.pdf'
+        }
+
+    except Exception as e:
+        print(f"Error generating PDF report: {e}")
+        return jsonify({'error': 'Failed to generate report'}), 500

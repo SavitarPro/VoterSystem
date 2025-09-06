@@ -1,0 +1,37 @@
+---
+config:
+  theme: 'base'
+  themeVariables:
+    primaryColor: '#EDE3CE'
+    primaryTextColor: '#000000'
+    primaryBorderColor: '#000000'
+    lineColor: '#000000'
+    secondaryColor: '#E3E1E1'
+    tertiaryColor: '#FFFFFF'
+---
+sequenceDiagram
+    title Validity Service Sequence Diagram
+    participant U as User
+    participant V as Validity Service
+    participant DB as Validity DB
+    participant L as Logger
+
+    U->>V: Check (unique id)
+    V->>V: Validate UUID format
+    V->>L: Log validation attempt
+
+    alt Invalid UUID format
+        V->>L: Log warning
+        V-->>U: Return error: Invalid ID format
+    else Valid UUID
+        V->>DB: Query voters by unique id
+        DB-->>V: Voter record (or null)
+
+        alt Voter found
+            V->>L: Log successful validation
+            V-->>U: Return valid: true + voter info
+        else Voter not found
+            V->>L: Log warning
+            V-->>U: Return valid: false
+        end
+    end

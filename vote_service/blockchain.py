@@ -32,5 +32,5 @@ class SimpleBlockchain:
         return new_block
 
 
-# Global blockchain instance
+
 blockchain = SimpleBlockchain()

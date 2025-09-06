@@ -10,7 +10,7 @@ from config import config
 
 
 def load_environment():
-    """Load environment variables"""
+    
     env = os.getenv('ENV', 'development')
     env_file = f'.env.{env}'
 

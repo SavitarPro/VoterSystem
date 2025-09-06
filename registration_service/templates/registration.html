@@ -179,35 +179,35 @@
 
             <div class="tab-content" id="registrationTabsContent">
                 <div class="tab-pane fade show active" id="personal" role="tabpanel">
-                    <h3 class="mb-4 text-primary"><i class="fas fa-user-circle me-2"></i>Personal Information</h3>
+                    <h3 class="mb-4 text-primary"><i class="fas fa-user-circle me-2"></i>Personal Information (පුද්ගලික තොරතුරු) (தனிப்பட்ட தகவல்)</h3>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="nic" class="form-label">NIC Number</label>
+                            <label for="nic" class="form-label">NIC Number (ජාතික හැඳුනුම්පත් අංකය) (தேசிய அடையாள அட்டை எண்)</label>
                             <input type="text" class="form-control" id="nic" placeholder="Enter your NIC number" required>
                             <div class="requirement-text">Required field</div>
                         </div>
 
                         <div class="col-md-6 mb-3">
-                            <label for="fullName" class="form-label">Full Name</label>
+                            <label for="fullName" class="form-label">Full Name (සම්පූර්ණ නම) (முழு பெயர்)</label>
                             <input type="text" class="form-control" id="fullName" placeholder="Enter your full name" required>
                             <div class="requirement-text">Required field</div>
                         </div>
 
                         <div class="col-12 mb-3">
-                            <label for="address" class="form-label">Address</label>
+                            <label for="address" class="form-label">Address (ලිපිනය) (முகவரி)</label>
                             <input type="text" class="form-control" id="address" placeholder="Enter your address" required>
                             <div class="requirement-text">Required field</div>
                         </div>
 
                         <div class="col-md-6 mb-3">
-                            <label for="division" class="form-label">Electoral Division</label>
+                            <label for="division" class="form-label">Electoral Division (මැතිවරණ කොට්ඨාශය) (தேர்தல் பிரிவு)</label>
                             <input type="text" class="form-control" id="division" placeholder="Enter your electoral division" required>
                             <div class="requirement-text">Required field</div>
                         </div>
 
                         <div class="col-md-6 mb-3">
-                            <label for="dob" class="form-label">Date of Birth</label>
+                            <label for="dob" class="form-label">Date of Birth (උපන් දිනය) (பிறந்த தேதி)</label>
                             <input type="date" class="form-control" id="dob" required>
                             <div class="requirement-text">Required field</div>
                         </div>
@@ -221,7 +221,7 @@
                 </div>
 
                 <div class="tab-pane fade" id="biometric" role="tabpanel">
-                    <h3 class="mb-4 text-primary"><i class="fas fa-upload me-2"></i>Biometric Information Upload</h3>
+                    <h3 class="mb-4 text-primary"><i class="fas fa-upload me-2"></i>Biometric Information Upload  (ජීව-දත්ත උඩුගත කිරීම) (பயோமெட்ரிக் பதிவேற்றம்)</h3>
 
                     <div class="row">
                         <div class="col-md-6 mb-4">
@@ -278,9 +278,13 @@
                         <i class="fas fa-check-circle text-success" style="font-size: 60px;"></i>
                         <h2 class="my-3 text-primary">Registration Successful!</h2>
                         <p class="lead">Your voter registration has been completed successfully.</p>
+                        <p class="lead">ඔබගේ ඡන්ද හිමි ලියාපදිංචිය සාර්ථකව අවසන් කර ඇත.</p>
+                        <p class="lead">உங்கள் வாக்காளர் பதிவு வெற்றிகரமாக நிறைவடைந்துள்ளது.</p>
                         <p>Your unique voter ID is:</p>
                         <div class="user-id" id="voterId">VR-5X8A2B9C</div>
                         <p>Please save this ID for future reference.</p>
+                        <p>කරුණාකර අනාගත යොමුව සඳහා මෙම හැඳුනුම්පත් අංකය සුරකින්න.</p>
+                        <p>எதிர்கால குறிப்புக்காக இந்த ஐடியை சேமிக்கவும்.</p>
                         <button class="btn btn-primary mt-3" onclick="clearForms(); activateTab('personal-tab')">
                             <i class="fas fa-user-plus me-2"></i> New Registration
                         </button>
@@ -436,11 +440,9 @@
             document.getElementById('fingerprint-upload-status').textContent = 'Not uploaded';
             document.getElementById('face-upload-status').className = 'requirement-text mt-1';
             document.getElementById('fingerprint-upload-status').className = 'requirement-text mt-1';
-
             document.getElementById('biometric-tab').classList.add('disabled');
             document.getElementById('confirmation-tab').classList.add('disabled');
             document.getElementById('complete-registration').disabled = true;
-
             document.getElementById('step-icon-1').className = 'step-icon active';
             document.getElementById('step-icon-2').className = 'step-icon';
             document.getElementById('step-icon-3').className = 'step-icon';
@@ -463,7 +465,6 @@
             personalInfoCompleted = true;
 
             document.getElementById('biometric-tab').classList.remove('disabled');
-
             document.getElementById('step-icon-1').className = 'step-icon completed';
             document.getElementById('step-icon-2').className = 'step-icon active';
 

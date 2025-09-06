@@ -1,0 +1,37 @@
+---
+config:
+  theme: 'base'
+  themeVariables:
+    primaryColor: '#EDE3CE'
+    primaryTextColor: '#000000'
+    primaryBorderColor: '#000000'
+    lineColor: '#000000'
+    secondaryColor: '#E3E1E1'
+    tertiaryColor: '#FFFFFF'
+---
+sequenceDiagram
+    title Registration Service Sequence Diagram
+    participant O as Registration Officer
+    participant R as Registration Service
+    participant DB_R as Registration DB
+    participant DB_C as Central DB
+    participant DB_V as Validity DB
+
+    O->>R: Login (credentials)
+    R->>R: Validate credentials
+    R-->>O: Return token (session)
+
+    O->>R: Register (form data + biometrics)
+    R->>DB_C: Check if NIC exists in central registry
+    DB_C-->>R: NIC status
+
+    alt NIC exists
+        R-->>O: Error: NIC already registered
+    else NIC doesn't exist
+        R->>R: Generate UUID, process & save images
+        R->>DB_C: Insert into central voter registry
+        R->>DB_R: Insert into voters (full data)
+        R->>DB_V: Insert into voters (minimal data)
+        R->>R: Execute all DB operations transactionally
+        R-->>O: Success: Registration complete
+    end

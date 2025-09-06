@@ -4,15 +4,15 @@ import numpy as np
 import base64
 from utils import FingerprintRecognizer, VoteManager
 from config import config
-import requests  # Add this import at the top
+import requests
 
-# Add fraud service configuration
+
 FRAUD_SERVICE_URL = "http://localhost:5006"
-FRAUD_SERVICE_ENABLED = True  # Set to False to disable fraud monitoring
+FRAUD_SERVICE_ENABLED = True
 
 vote_bp = Blueprint('vote', __name__)
 
-# Initialize components
+
 fingerprint_recognizer = FingerprintRecognizer(config.FINGERPRINT_MODEL_PATH)
 vote_manager = VoteManager()
 
@@ -51,32 +51,32 @@ def officer_override():
         officer_id = data.get('officer_id')
         voter_nic = data.get('voter_nic')
 
-        # In vote_service/routes.py, ensure this is called during authentication
+
         if FRAUD_SERVICE_ENABLED and voter_nic and not vote_manager.blockchain.has_voted(voter_nic):
             notify_fraud_service(voter_nic, "start_monitoring")
 
         if not officer_id or not voter_nic:
             return jsonify({'success': False, 'error': 'Officer ID and Voter NIC required'})
 
-        # Validate officer ID
+
         if not vote_manager.validate_officer_id(officer_id):
             return jsonify({'success': False, 'error': 'Unauthorized officer ID'})
 
-        # Check if voter exists
+
         voter_info = vote_manager.get_voter_info(voter_nic)
         if not voter_info:
             return jsonify({'success': False, 'error': 'Voter not found'})
 
-        # Check voter auth status
+
         auth_status = vote_manager.check_voter_auth_status(voter_nic)
         if not auth_status:
             return jsonify({'success': False, 'error': 'Voter not approved for voting'})
 
-        # Check if already voted
+
         if vote_manager.blockchain.has_voted(voter_nic):
             return jsonify({'success': False, 'error': 'Voter has already voted'})
 
-        # Store in session for party selection
+
         session['voter_nic'] = voter_nic
 
         return jsonify({
@@ -100,12 +100,12 @@ def cast_vote():
         if not voter_nic:
             return jsonify({'success': False, 'error': 'Not authenticated'})
 
-        # Cast vote
+
         success, message = vote_manager.cast_vote(voter_nic, party_code)
 
         if success:
-            # Don't clear session yet - we need it for confirmation page
-            # session.pop('voter_nic', None)  # REMOVE THIS LINE
+
+
             return jsonify({
                 'success': True,
                 'message': 'Vote cast successfully!',
@@ -135,16 +135,16 @@ def check_vote_status():
 
 @vote_bp.route('/confirmation')
 def vote_confirmation():
-    # Get the latest vote from blockchain to show confirmation
+
     voter_nic = session.get('voter_nic')
     if not voter_nic:
         return redirect(url_for('vote.vote_dashboard'))
 
-    # Get the latest vote for this voter
+
     blockchain = vote_manager.blockchain
     latest_vote = None
 
-    # Find the voter's latest vote
+
     for block in reversed(blockchain.chain):
         for vote in block['votes']:
             if vote['voter_nic'] == voter_nic:
@@ -156,7 +156,7 @@ def vote_confirmation():
     if not latest_vote:
         return redirect(url_for('vote.vote_dashboard'))
 
-    # Get total votes and this vote's number
+
     total_votes = vote_manager.get_vote_stats()['total_votes']
     vote_number = 0
     for block in blockchain.chain:
@@ -166,6 +166,7 @@ def vote_confirmation():
                 break
         if latest_vote:
             break
+    session.pop('voter_nic', None)
 
     return render_template('vote_confirmation.html',
                            voter_nic=voter_nic,
@@ -176,7 +177,7 @@ def vote_confirmation():
 
 
 def notify_fraud_service(voter_nic, action):
-    """Notify fraud service about voter activity"""
+
     if not FRAUD_SERVICE_ENABLED:
         return True
 
@@ -200,18 +201,18 @@ def notify_fraud_service(voter_nic, action):
         return False
 
 
-# Update the process_fingerprint function to start fraud monitoring
+
 @vote_bp.route('/api/process_fingerprint', methods=['POST'])
 def process_fingerprint():
     try:
         data = request.get_json()
         image_data = data['image'].split(',')[1]
 
-        # Decode base64 image
+
         nparr = np.frombuffer(base64.b64decode(image_data), np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
 
-        # Recognize fingerprint
+
         nic, confidence = fingerprint_recognizer.recognize_fingerprint(image)
 
         response = {
@@ -221,10 +222,10 @@ def process_fingerprint():
         }
 
         if nic:
-            # Check if voter exists and is approved
+
             voter_info = vote_manager.get_voter_info(nic)
             if voter_info:
-                # Check voter auth status
+
                 auth_status = vote_manager.check_voter_auth_status(nic)
                 if not auth_status:
                     response.update({
@@ -234,7 +235,7 @@ def process_fingerprint():
                     })
                     return jsonify(response)
 
-                # Check if already voted
+
                 if vote_manager.blockchain.has_voted(nic):
                     response.update({
                         'authenticated': True,
@@ -242,9 +243,9 @@ def process_fingerprint():
                         'message': 'Already voted',
                         'already_voted': True
                     })
-                    # Update the process_fingerprint function to properly start monitoring
+
                 if not vote_manager.blockchain.has_voted(nic):
-                    # START FRAUD MONITORING - Use a try-catch to prevent failures
+
                     if FRAUD_SERVICE_ENABLED:
                         try:
                             notify_fraud_service(nic, "start_monitoring")
@@ -265,10 +266,10 @@ def process_fingerprint():
         return jsonify({'success': False, 'error': str(e)})
 
 
-# Add endpoint to send video frames to fraud service
+
 @vote_bp.route('/api/send_video_frame', methods=['POST'])
 def send_video_frame():
-    """Send video frame to fraud service for monitoring"""
+
     try:
         data = request.get_json()
         voter_nic = session.get('voter_nic')
@@ -278,7 +279,7 @@ def send_video_frame():
             return jsonify({'success': False, 'error': 'Missing parameters'})
 
         if FRAUD_SERVICE_ENABLED:
-            # Send frame to fraud service
+
             response = requests.post(
                 f"{FRAUD_SERVICE_URL}/api/process_frame",
                 json={

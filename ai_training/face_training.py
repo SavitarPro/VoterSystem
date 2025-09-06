@@ -2,9 +2,11 @@ import os
 import cv2
 import numpy as np
 import pickle
-from sklearn import svm
+import tensorflow as tf
+from tensorflow.keras import layers, models
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
 
 class FaceTraining:
@@ -13,33 +15,53 @@ class FaceTraining:
         self.known_face_nics = []
         self.model = None
         self.label_encoder = LabelEncoder()
+        self.cnn_model = None
 
-        # Load Haar cascade for face detection
+
         self.face_cascade = cv2.CascadeClassifier(
             cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
         )
 
-    def extract_face_embeddings(self, face_image):
-        """Extract embeddings from face image"""
-        # Resize to consistent size
+    def build_cnn_model(self, input_shape, num_classes):
+
+        model = models.Sequential([
+            layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
+            layers.MaxPooling2D((2, 2)),
+            layers.Conv2D(64, (3, 3), activation='relu'),
+            layers.MaxPooling2D((2, 2)),
+            layers.Conv2D(64, (3, 3), activation='relu'),
+            layers.Flatten(),
+            layers.Dense(64, activation='relu'),
+            layers.Dropout(0.5),
+            layers.Dense(num_classes, activation='softmax')
+        ])
+
+        model.compile(optimizer='adam',
+                      loss='sparse_categorical_crossentropy',
+                      metrics=['accuracy'])
+        return model
+
+    def extract_face_embeddings_cnn(self, face_image):
+
+
         face_resized = cv2.resize(face_image, (100, 100))
 
-        # Convert to grayscale if needed
+
         if len(face_resized.shape) == 3:
             face_gray = cv2.cvtColor(face_resized, cv2.COLOR_BGR2GRAY)
         else:
             face_gray = face_resized
 
-        # Apply histogram equalization for better contrast
-        face_eq = cv2.equalizeHist(face_gray)
 
-        # Flatten and normalize
-        embedding = face_eq.flatten().astype(np.float32) / 255.0
+        face_normalized = face_gray / 255.0
 
-        return embedding
+
+        face_normalized = np.expand_dims(face_normalized, axis=-1)
+
+        return face_normalized
 
     def detect_faces(self, image):
-        """Detect faces using Haar cascade"""
+
         if len(image.shape) == 3:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
@@ -54,7 +76,7 @@ class FaceTraining:
         return faces
 
     def load_training_data(self, training_dir):
-        """Load face images from training directory"""
+
         self.known_face_encodings = []
         self.known_face_nics = []
 
@@ -72,22 +94,22 @@ class FaceTraining:
                 if image_name.lower().endswith(('.jpg', '.jpeg', '.png')):
                     image_path = os.path.join(person_dir, image_name)
 
-                    # Load image using OpenCV
+
                     image = cv2.imread(image_path)
                     if image is None:
                         print(f"Could not load image: {image_path}")
                         continue
 
-                    # Detect faces
+
                     faces = self.detect_faces(image)
 
                     if len(faces) > 0:
-                        # Use the first detected face
+
                         x, y, w, h = faces[0]
                         face_roi = image[y:y + h, x:x + w]
 
                         try:
-                            face_embedding = self.extract_face_embeddings(face_roi)
+                            face_embedding = self.extract_face_embeddings_cnn(face_roi)
                             self.known_face_encodings.append(face_embedding)
                             self.known_face_nics.append(nic_number)
                             image_count += 1
@@ -103,49 +125,73 @@ class FaceTraining:
         print(f"Total: {len(self.known_face_encodings)} face encodings for {len(set(self.known_face_nics))} people")
         return len(self.known_face_encodings) > 0
 
+
     def train_model(self):
-        """Train SVM classifier on face encodings"""
+
         training_dir = 'data/faces'
 
         if not self.load_training_data(training_dir):
             print("No training data available")
             return False
 
-        # Convert to numpy arrays
+
         X = np.array(self.known_face_encodings)
         y = np.array(self.known_face_nics)
 
-        # Split data for training and testing
+
+        unique_nics = sorted(set(self.known_face_nics))
+        nic_to_label = {nic: idx for idx, nic in enumerate(unique_nics)}
+        label_to_nic = {idx: nic for idx, nic in enumerate(unique_nics)}
+
+
+        y_numeric = np.array([nic_to_label[nic] for nic in y])
+        num_classes = len(unique_nics)
+
+
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42, stratify=y
+            X, y_numeric, test_size=0.2, random_state=42, stratify=y_numeric
         )
 
-        # Encode labels
-        encoded_labels_train = self.label_encoder.fit_transform(y_train)
-        encoded_labels_test = self.label_encoder.transform(y_test)
 
-        # Train SVM classifier
-        self.model = svm.SVC(kernel='linear', probability=True, random_state=42)
-        self.model.fit(X_train, encoded_labels_train)
+        input_shape = (100, 100, 1)
+        self.cnn_model = self.build_cnn_model(input_shape, num_classes)
 
-        # Evaluate model
-        train_accuracy = self.model.score(X_train, encoded_labels_train)
-        test_accuracy = self.model.score(X_test, encoded_labels_test)
 
-        print("Face recognition model trained successfully")
+        history = self.cnn_model.fit(
+            X_train, y_train,
+            epochs=20,
+            validation_data=(X_test, y_test),
+            batch_size=32,
+            verbose=1
+        )
+
+
+        train_loss, train_accuracy = self.cnn_model.evaluate(X_train, y_train, verbose=0)
+        test_loss, test_accuracy = self.cnn_model.evaluate(X_test, y_test, verbose=0)
+
+        print("Face recognition CNN model trained successfully")
         print(f"Training Accuracy: {train_accuracy:.2f}")
         print(f"Testing Accuracy: {test_accuracy:.2f}")
 
-        # Save model
-        model_path = 'models/face_model.pkl'
+
+        model_path = 'models/face_model.h5'
         os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
-        with open(model_path, 'wb') as f:
+
+        self.cnn_model.save(model_path)
+
+
+        metadata_path = 'models/face_metadata.pkl'
+        with open(metadata_path, 'wb') as f:
             pickle.dump({
-                'model': self.model,
-                'label_encoder': self.label_encoder,
-                'known_face_nics': self.known_face_nics
+                'label_to_nic': label_to_nic,
+                'nic_to_label': nic_to_label,
+                'unique_nics': unique_nics,
+                'input_shape': input_shape,
+                'num_classes': num_classes
             }, f)
 
         print(f"Model saved to {model_path}")
+        print(f"Metadata saved to {metadata_path}")
+        print(f"Trained on {num_classes} people: {unique_nics}")
         return True

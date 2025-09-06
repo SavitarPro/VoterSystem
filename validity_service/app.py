@@ -4,7 +4,7 @@ from utils import init_app
 import sys
 import os
 
-# Add the parent directory to the path to import config
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import config
 
@@ -13,10 +13,10 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(config)
 
-    # Initialize app
+    
     init_app(app)
 
-    # Register blueprints
+    
     app.register_blueprint(validity_bp)
 
     return app

@@ -1,21 +1,13 @@
 import os
 
-
 class Config:
-    # Database configuration
     DB_HOST = os.getenv('DB_HOST', 'localhost')
     DB_PORT = os.getenv('DB_PORT', '5432')
     DB_USER = os.getenv('DB_USER', 'postgres')
     DB_PASSWORD = os.getenv('DB_PASSWORD', '1480')
 
-    # Service ports
-    REGISTRATION_PORT = 5001
     VALIDITY_PORT = 5002
-    AUTH_PORT = 5003
-    VOTE_PORT = 5004
-    ADMIN_PORT = 5005
 
-    # Database names
     CENTRAL_DB = 'central_voter_db'
     REGISTRATION_DB = 'voter_registration_db'
     VALIDITY_DB = 'voter_validity_db'
@@ -23,18 +15,14 @@ class Config:
     VOTE_DB = 'vote_db'
     ADMIN_DB = 'admin_db'
 
-    # File upload settings
     UPLOAD_FOLDER = 'static/images/uploads'
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
-    # AI Model paths
-    #FACE_MODEL_PATH = 'ai_training/models/face_model.pkl'
-    #FINGERPRINT_MODEL_PATH = 'ai_training/models/fingerprint_model.pkl'
+    RATELIMIT_DEFAULT = "100 per hour"  
+    RATELIMIT_STORAGE_URL = "memory://"  
 
-    # Training data paths
-    #FACE_TRAINING_DATA = 'ai_training/data/faces'
-    #FINGERPRINT_TRAINING_DATA = 'ai_training/data/fingerprints'
-
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    LOG_FILE = os.getenv('LOG_FILE', 'validity_service.log')
 
 config = Config()

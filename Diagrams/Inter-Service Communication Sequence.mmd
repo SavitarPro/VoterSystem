@@ -1,0 +1,36 @@
+---
+config:
+  theme: 'base'
+  themeVariables:
+    primaryColor: '#EDE3CE'
+    primaryTextColor: '#000000'
+    primaryBorderColor: '#000000'
+    lineColor: '#000000'
+    secondaryColor: '#E3E1E1'
+    tertiaryColor: '#FFFFFF'
+---
+sequenceDiagram
+    title Inter-Service Communication Sequence
+    participant V as Voter
+    participant VS as Vote Service
+    participant AS as Auth Service
+    participant FS as Fraud Service
+    participant VS2 as Validity Service
+
+    V->>VS: Attempt to vote
+    VS->>AS: Verify authentication status
+    AS-->>VS: Auth status (approved/rejected)
+
+    VS->>VS2: Check voter validity
+    VS2-->>VS: Validity status
+
+    alt Voter valid and approved
+        VS->>FS: Start monitoring (voter nic)
+        FS-->>VS: Monitoring confirmed
+        VS-->>V: Proceed to vote
+
+        V->>VS: Cast vote
+        VS->>FS: Stop monitoring (voter nic)
+        FS-->>VS: Monitoring stopped
+        VS-->>V: Vote confirmation
+    end

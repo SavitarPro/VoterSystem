@@ -1,22 +1,17 @@
-import psycopg2
 from utils import get_db_connection
 
 
 def get_voting_stats():
-    """Get voting statistics"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Get total registered voters
         cur.execute('SELECT COUNT(*) FROM voters')
         total_voters = cur.fetchone()[0]
 
-        # Get votes count
         cur.execute('SELECT COUNT(*) FROM votes')
         votes_count = cur.fetchone()[0]
 
-        # Get votes by party
         cur.execute('''
                     SELECT ep.name, COUNT(v.id)
                     FROM election_parties ep
@@ -25,7 +20,6 @@ def get_voting_stats():
                     ''')
         votes_by_party = cur.fetchall()
 
-        # Get approved and rejected counts
         cur.execute('SELECT COUNT(*) FROM activity_log WHERE status = %s', ('approved',))
         approved_count = cur.fetchone()[0]
 
@@ -50,7 +44,6 @@ def get_voting_stats():
 
 
 def get_activity_log():
-    """Get recent activity log"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -81,7 +74,6 @@ def get_activity_log():
 
 
 def add_activity_log(voter_id, action, status):
-    """Add an entry to the activity log"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -101,7 +93,6 @@ def add_activity_log(voter_id, action, status):
 
 
 def set_voting_status(is_active):
-    """Set voting status"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -121,7 +112,6 @@ def set_voting_status(is_active):
 
 
 def get_voting_status():
-    """Get current voting status"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()

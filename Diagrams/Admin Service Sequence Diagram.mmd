@@ -1,0 +1,36 @@
+---
+config:
+  theme: 'base'
+  themeVariables:
+    primaryColor: '#EDE3CE'
+    primaryTextColor: '#000000'
+    primaryBorderColor: '#000000'
+    lineColor: '#000000'
+    secondaryColor: '#E3E1E1'
+    tertiaryColor: '#FFFFFF'
+---
+sequenceDiagram
+    title Admin Service Sequence Diagram
+    participant A as Admin User
+    participant AD as Admin Service
+    participant DB_V as Vote DB
+    participant DB_R as Registration DB
+    participant BC as Blockchain
+
+    A->>AD: Login (admin credentials)
+    AD->>AD: Validate admin credentials
+    AD-->>A: Session established
+
+    A->>AD: Dashboard
+    AD->>DB_V: Get election results
+    DB_V-->>AD: Party-wise vote counts
+    AD->>DB_R: Get voter turnout
+    DB_R-->>AD: Registration vs voting stats
+    AD->>BC: Get total votes
+    BC-->>AD: Blockchain vote count
+    AD-->>A: Dashboard with stats
+
+    A->>AD: Generate report
+    AD->>AD: Generate PDF report
+    AD->>ReportLab: Create PDF with tables/charts
+    AD-->>A: Download PDF report

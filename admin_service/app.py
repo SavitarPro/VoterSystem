@@ -3,25 +3,21 @@ from datetime import timedelta
 import os
 import sys
 
-# Add the current directory to the path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
-from config import admin_config
+from config import config
 from routes import admin_bp
 
 
 def create_admin_app():
     app = Flask(__name__, template_folder='templates')
 
-    # Configuration
-    app.config['SECRET_KEY'] = admin_config.SECRET_KEY
+    app.config['SECRET_KEY'] = config.SECRET_KEY
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
 
-    # Register blueprint
     app.register_blueprint(admin_bp)
 
-    # Error handlers
     @app.errorhandler(404)
     def not_found(error):
         return {'error': 'Endpoint not found'}, 404

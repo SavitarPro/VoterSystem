@@ -1,0 +1,104 @@
+---
+config:
+  theme: 'base'
+  themeVariables:
+    primaryColor: '#EDE3CE'
+    primaryTextColor: '#000000'
+    primaryBorderColor: '#000000'
+    lineColor: '#000000'
+    secondaryColor: '#E3E1E1'
+    tertiaryColor: '#FFFFFF'
+---
+erDiagram
+    CENTRAL_VOTER_REGISTRY {
+        string nic PK
+        string electoral_division
+        date date_of_birth
+        datetime registration_date
+    }
+    VOTERS {
+        uuid unique_id PK
+        string nic FK
+        string full_name
+        string address
+        string electoral_division
+        date date_of_birth
+        string face_image_path
+        string fingerprint_path
+        datetime registration_date
+    }
+    VOTERS_VALIDITY {
+        uuid unique_id PK
+        string nic
+        string full_name
+        string electoral_division
+        date date_of_birth
+    }
+    AUTHENTICATIONS {
+        int id PK
+        string unique_id
+        string nic FK
+        string full_name
+        string officer_id
+        float confidence
+        string status "APPROVED/REJECTED"
+        datetime auth_time
+    }
+    ACTIVITY_LOG {
+        int id PK
+        datetime timestamp
+        string voter_id
+        string action
+        string status
+    }
+    VOTING_STATUS {
+        int id PK
+        boolean is_active
+    }
+    VOTE_SESSIONS {
+        int session_id PK
+        string voter_nic FK
+        datetime start_time
+        datetime end_time
+        string status "active/completed"
+    }
+    ANONYMOUS_VOTES {
+        int vote_id PK
+        string party_code
+        datetime vote_time
+        string block_hash
+    }
+    ELECTION_PARTIES {
+        int id PK
+        string name
+        string code
+    }
+    FRAUD_ATTEMPTS {
+        int id PK
+        string voter_nic FK
+        int person_count
+        string officer_action "approved/rejected"
+        datetime detected_at
+        datetime resolved_at
+    }
+    CENTRAL_VOTER_REGISTRY ||--o{ VOTERS : "validates"
+    VOTERS ||--o{ AUTHENTICATIONS : "authenticates"
+    VOTERS ||--o{ VOTE_SESSIONS : "initiates"
+    VOTERS ||--o{ FRAUD_ATTEMPTS : "monitors"
+    VOTERS ||--|| VOTERS_VALIDITY : "mirrors"
+
+    VOTE_SESSIONS ||--o{ ANONYMOUS_VOTES : "contains"
+    ELECTION_PARTIES ||--o{ ANONYMOUS_VOTES : "receives"
+
+    AUTHENTICATIONS }|--|| ACTIVITY_LOG : "logs"
+    VOTING_STATUS ||--o{ ACTIVITY_LOG : "tracks"
+
+    ANONYMOUS_VOTES }|--|| BLOCKCHAIN_BLOCKS : "references"
+
+    BLOCKCHAIN_BLOCKS {
+        int index PK
+        string previous_hash
+        string hash
+        json votes
+        datetime timestamp
+    }

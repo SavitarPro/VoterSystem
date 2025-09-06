@@ -2,7 +2,7 @@ from flask import Flask, render_template
 import os
 import sys
 
-# Add the current directory to Python path
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from config import config
@@ -12,14 +12,14 @@ from routes import auth_bp
 def create_app():
     app = Flask(__name__)
 
-    # Configure app
+
     app.config['UPLOAD_FOLDER'] = config.UPLOAD_FOLDER
     app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
 
-    # Register blueprints
+
     app.register_blueprint(auth_bp)
 
-    # Remove the index route from here since it's now in the blueprint
+
 
     @app.errorhandler(404)
     def not_found(error):
